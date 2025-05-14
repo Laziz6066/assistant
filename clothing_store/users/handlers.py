@@ -95,12 +95,6 @@ async def view_catalog(message: Message):
                          reply_markup=await kb.show_categories(message.from_user.id))
 
 
-@router.message(F.text.in_({'На заказ', 'Buyurtma'}))
-async def view_catalog(message: Message):
-    lang_choice = await rq.get_user(message.from_user.id)
-    await message.answer(config.order[lang_choice])
-
-
 @router.callback_query(F.data.startswith('show_category_'))
 async def show_items(callback: CallbackQuery):
     data_parts = callback.data.split('_')

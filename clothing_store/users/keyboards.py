@@ -24,6 +24,10 @@ async def get_main_keyboard(user_id: int) -> ReplyKeyboardMarkup:
     buttons = [
         [KeyboardButton(text=text_main_menu_key[lang_choice]['stock']),
          KeyboardButton(text=text_main_menu_key[lang_choice]['order'])],
+
+        [KeyboardButton(text=text_main_menu_key[lang_choice]['bonuses']),
+         KeyboardButton(text=text_main_menu_key[lang_choice]['account'])],
+
         [KeyboardButton(text=text_main_menu_key[lang_choice]['support']),
          KeyboardButton(text=text_main_menu_key[lang_choice]['change_lang'])]]
 
@@ -89,3 +93,10 @@ async def item_keyboard(item_id, user_id):
         keyboard.add(InlineKeyboardButton(text="Изменить товар", callback_data=f"update_item_{item_id}"))
 
     return keyboard.adjust(1).as_markup()
+
+
+async def order_choice() -> ReplyKeyboardMarkup:
+    buttons = [
+        [KeyboardButton(text='✈️ Авиа-карго'), KeyboardButton(text="🚛 Авто-карго")]]
+
+    return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)

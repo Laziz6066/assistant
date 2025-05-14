@@ -1,13 +1,14 @@
-from datetime import datetime
-
+from datetime import datetime, UTC
+from collections.abc import Sequence
 from clothing_store.database.models import async_session
-from clothing_store.database.models import User, Category, Item
+from clothing_store.database.models import User, Category, Item, Order
 from sqlalchemy import select, update, delete
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import AsyncGenerator
 
 
-async def get_async_session() -> AsyncSession:
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session() as session:
         yield session
 
@@ -15,8 +16,18 @@ async def get_async_session() -> AsyncSession:
 async def get_user(user_id: int):
     async with async_session() as session:
         result = await session.scalars(select(User.language).where(User.tg_id == user_id))
-        return result.first()  # Get the first value
+        return result.first()
 
+
+async def get_user_reg(user_id: int):
+    """
+    Вернуть объект User по tg_id или None, если такого пользователя нет.
+    """
+    async with async_session() as session:
+        result = await session.execute(
+            select(User).where(User.tg_id == user_id)
+        )
+        return result.scalars().first()
 
 async def get_categories():
     async with async_session() as session:
@@ -110,7 +121,6 @@ async def delete_category_by_name(category_name: str):
         await session.commit()
 
 
-# В requests.py добавьте:
 async def update_user_language(user_id: int, new_language: str, session: AsyncSession):
     await session.execute(
         update(User).where(User.tg_id == user_id).values(language=new_language)
@@ -122,3 +132,30 @@ async def get_item(item_id: int) -> Item | None:
     async with async_session() as session:
         result = await session.execute(select(Item).where(Item.id == item_id))
         return result.scalar_one_or_none()
+
+
+async def update_user(user_id: int, **fields):
+
+    if not fields:
+        return
+
+    async with async_session() as session:
+        await session.execute(
+            update(User)
+            .where(User.tg_id == user_id)
+            .values(**fields)
+        )
+        await session.commit()
+
+
+async def add_order(photo: list, shipping_method: str, user: int, item: int | None = None,
+                    quantity: int | None = None, total_price: int | None = None,
+                    status: str | None = None):
+
+    async with async_session() as session:
+        order = Order(photo=photo, shipping_method=shipping_method, user=user, item=item,
+                      quantity=quantity, total_price=total_price, status=status,
+                      created_at=datetime.now(UTC))
+        session.add(order)
+        await session.commit()
+        return order

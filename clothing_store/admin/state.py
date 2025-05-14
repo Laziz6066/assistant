@@ -18,22 +18,8 @@ class AddItem(StatesGroup):
     subcategory = State()
 
 
-class AddCourse(StatesGroup):
-    course = State()
-
-
 class DeleteCategory(StatesGroup):
     waiting_for_name = State()
-
-
-class DeleteBrand(StatesGroup):
-    name_uz = State()
-    name_ru = State()
-
-
-class DeleteSubcategory(StatesGroup):
-    name_uz = State()
-    name_ru = State()
 
 
 class DeleteItem(StatesGroup):
@@ -46,3 +32,14 @@ class UpdateItem(StatesGroup):
     description_ru = State()
     description_uz = State()
     price = State()
+
+
+class AddOrder(StatesGroup):
+    photo = State()
+    shipping_method = State()
+
+
+class Register(StatesGroup):
+    full_name = State()
+    phone = State()
+    address = State()

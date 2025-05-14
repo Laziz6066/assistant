@@ -67,6 +67,6 @@ installment = {
 }
 
 order = {
-    'ru': "Чтобы заказать товар Вам нужно всего-то отправить фото товара.",
-    'uz': "Mahsulotga buyurtma berish uchun mahsulotning fotosuratini yuborish kifoya."
+    'ru': "Для того чтобы заказать отправьте фото товара.",
+    'uz': "Buyurtma berish uchun mahsulot fotosuratini yuboring."
 }

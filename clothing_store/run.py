@@ -8,6 +8,7 @@ from clothing_store.admin.handlers.add_item import add_item_router
 from clothing_store.admin.handlers.delete_item import del_item_router
 from clothing_store.admin.handlers.update_item import upd_item_router
 from clothing_store.admin.handlers.category import category_router
+from clothing_store.users.orders import order_router
 from clothing_store.database.models import async_main
 from dotenv import load_dotenv
 
@@ -23,6 +24,7 @@ async def main():
     dp.include_router(del_item_router)
     dp.include_router(upd_item_router)
     dp.include_router(category_router)
+    dp.include_router(order_router)
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
