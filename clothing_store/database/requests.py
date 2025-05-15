@@ -158,14 +158,14 @@ async def update_user(user_id: int, **fields):
         await session.commit()
 
 
-async def add_order(photo: list, shipping_method: str, user: int, item_id: int | None = None,
+async def add_order(photo: list | None = None, shipping_method: str | None = None,
+                    user: int | None = None, item_id: int | None = None,
                     quantity: int | None = None, total_price: int | None = None,
                     status: str | None = None):
-
     async with async_session() as session:
-        order = Order(photo=photo, shipping_method=shipping_method, user=user, item_id=item_id,
-                      quantity=quantity, total_price=total_price, status=status,
-                      created_at=datetime.now(UTC))
+        order = Order(photo=photo or [], shipping_method=shipping_method, user=user,
+                      item_id=item_id, quantity=quantity, total_price=total_price,
+                      status=status, created_at=datetime.now(UTC))
         session.add(order)
         await session.commit()
         return order
@@ -215,3 +215,9 @@ async def set_order_paid(
         await session.commit()
         await session.refresh(order)
         return order
+
+
+async def get_order(order_id: int) -> Order | None:
+    """Вернуть Order по первичному ключу или None."""
+    async with async_session() as session:
+        return await session.get(Order, order_id)

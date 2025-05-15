@@ -66,8 +66,18 @@ async def finalize_order(callback: CallbackQuery):
 
     user = await rq.get_user_reg(callback.from_user.id)
 
+    order = await rq.add_order(
+        photo=[],
+        shipping_method=delivery_label,
+        user=user.id,
+        item_id=item.id if item else None,
+        quantity=1,
+        total_price=item.price if item else None,
+    )
+
     admin_text = (
         "⚠️ <b>Новый заказ</b>\n"
+        f"Номер заказа: №<code>{order.id}</code>\n"
         f"Имя пользователя: {user.full_name}\n"
         f"Ссылка на пользователя: {user.user_link or '—'}\n"
         f"ID пользователя: <code>{user.tg_id}</code>\n"
@@ -88,6 +98,7 @@ async def finalize_order(callback: CallbackQuery):
         "Спасибо! Заказ принят, скоро свяжемся." if lang == "ru" else
         "Rahmat! Buyurtma qabul qilindi, tez orada aloqaga chiqamiz."
     )
+
     await _safe_edit(callback, confirm, None)
 
 # ================= Вспомогательные =================

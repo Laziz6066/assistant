@@ -52,9 +52,9 @@ class PersonalAccount(StatesGroup):
 
 
 class SetPaidSG(StatesGroup):
+    waiting_order_id = State()
     quantity = State()
     total_price = State()
     deposit = State()
     status = State()
-    waiting_order_id = State()
     confirmation = State()
