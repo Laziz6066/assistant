@@ -9,7 +9,7 @@ async def admin_keyboard(user_id: int) -> ReplyKeyboardMarkup | None:
         buttons = [
             [KeyboardButton(text='Добавить категорию'), KeyboardButton(text='Удалить категорию')],
             [KeyboardButton(text='Добавить товар'), KeyboardButton(text='Удалить товар')],
-            [KeyboardButton(text='Изменить статус'), KeyboardButton(text='На главную')]
+            [KeyboardButton(text='Подтвердить'), KeyboardButton(text='На главную')]
         ]
         return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
     else:
@@ -40,3 +40,24 @@ async def add_categories_item():
     keyboard.add(InlineKeyboardButton(text='На главную', callback_data='to_main'))
 
     return keyboard.adjust(2).as_markup()
+
+
+async def status_keyboard(user_id: int) -> ReplyKeyboardMarkup | None:
+    if user_id in ADMINS:
+        buttons = [
+            [KeyboardButton(text='Заказ принят'), KeyboardButton(text='Доставляется')],
+            [KeyboardButton(text='В пути'), KeyboardButton(text='Товар прибыл')],
+        ]
+        return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
+    else:
+        return None
+
+
+async def confirmation_keyboard():
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="Да"), KeyboardButton(text="Нет")]
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )

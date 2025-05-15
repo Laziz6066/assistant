@@ -171,3 +171,5 @@ async def catalog_main(callback: CallbackQuery):
     await callback.message.edit_text(config.choice_category[lang_choice],
                                      reply_markup=await kb.show_categories(callback.from_user.id))
     await callback.answer()
+
+

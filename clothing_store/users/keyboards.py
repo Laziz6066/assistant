@@ -1,4 +1,4 @@
-from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from dotenv import load_dotenv
 from clothing_store.database.requests import get_categories, get_items
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -100,3 +100,49 @@ async def order_choice() -> ReplyKeyboardMarkup:
         [KeyboardButton(text='✈️ Авиа-карго'), KeyboardButton(text="🚛 Авто-карго")]]
 
     return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
+
+
+def get_delivery_pickup_keyboard(lang: str = "ru", item_id: int | None = None) -> InlineKeyboardMarkup:
+    """Клавиатура «Доставка / Самовывоз» (оплата наличными)."""
+    if item_id is None:
+        raise ValueError("item_id must be provided for delivery/pickup keyboard")
+
+    delivery_text = "🚚 Доставка" if lang == "ru" else "🚚 Yetkazib berish"
+    pickup_text = "🏬 Самовывоз" if lang == "ru" else "🏬 O'zingiz olib ketish"
+
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text=delivery_text, callback_data=f"delivery_{item_id}"),
+        InlineKeyboardButton(text=pickup_text, callback_data=f"pickup_{item_id}")
+    )
+    return builder.as_markup()
+
+# ---------- «Перевод на карту» : Детальные варианты доставки ----------
+
+def get_transfer_delivery_keyboard(lang: str = "ru", item_id: int | None = None) -> InlineKeyboardMarkup:
+    """Клавиатура с тремя видами доставки + «с примеркой» (перевод на карту)."""
+    if item_id is None:
+        raise ValueError("item_id must be provided for transfer delivery keyboard")
+
+    texts_ru = {
+        "yandex": "🚕 Яндекс/Уклон",
+        "courier": "🚚 Курьер",
+        "post": "📦 Почта",
+        "fitting": "👗 Доставка с примеркой",
+    }
+    texts_uz = {
+        "yandex": "🚕 Yandex/Uklon",
+        "courier": "🚚 Kuryer",
+        "post": "📦 Pochta",
+        "fitting": "👗 O'lchab ko'rish bilan",
+    }
+    t = texts_ru if lang == "ru" else texts_uz
+
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text=t["yandex"], callback_data=f"yandex_{item_id}"),
+        InlineKeyboardButton(text=t["courier"], callback_data=f"courier_{item_id}"),
+        InlineKeyboardButton(text=t["post"], callback_data=f"post_{item_id}")
+    )
+    builder.row(InlineKeyboardButton(text=t["fitting"], callback_data=f"fitting_{item_id}"))
+    return builder.as_markup()

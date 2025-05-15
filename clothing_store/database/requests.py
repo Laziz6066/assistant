@@ -1,5 +1,5 @@
 from datetime import datetime, UTC
-from collections.abc import Sequence
+from sqlalchemy.orm import selectinload
 from clothing_store.database.models import async_session
 from clothing_store.database.models import User, Category, Item, Order
 from sqlalchemy import select, update, delete
@@ -28,6 +28,16 @@ async def get_user_reg(user_id: int):
             select(User).where(User.tg_id == user_id)
         )
         return result.scalars().first()
+
+
+async def get_user_by_pk(pk_id: int) -> User | None:
+    """
+    Вернуть объект User по его первичному id (колонка users.id).
+    Если запись не найдена – вернуть None.
+    """
+    async with async_session() as session:
+        return await session.get(User, pk_id)
+
 
 async def get_categories():
     async with async_session() as session:
@@ -148,14 +158,60 @@ async def update_user(user_id: int, **fields):
         await session.commit()
 
 
-async def add_order(photo: list, shipping_method: str, user: int, item: int | None = None,
+async def add_order(photo: list, shipping_method: str, user: int, item_id: int | None = None,
                     quantity: int | None = None, total_price: int | None = None,
                     status: str | None = None):
 
     async with async_session() as session:
-        order = Order(photo=photo, shipping_method=shipping_method, user=user, item=item,
+        order = Order(photo=photo, shipping_method=shipping_method, user=user, item_id=item_id,
                       quantity=quantity, total_price=total_price, status=status,
                       created_at=datetime.now(UTC))
         session.add(order)
         await session.commit()
+        return order
+
+
+async def get_unpaid_orders():
+    """
+    Вернуть список всех заказов, где is_paid = False.
+    Используется, если вы захотите выводить список кнопок вместо ручного ввода.
+    """
+    async with async_session() as session:
+        result = await session.scalars(
+            select(Order)
+            .where(Order.is_paid.is_(False))
+            .options(selectinload(Order.item))      # подтягиваем товар сразу
+        )
+        return result.all()
+
+
+# ----------------------------------------------------------------------
+async def set_order_paid(
+    order_id: int,
+    quantity: int | None = None,
+    total_price: int | None = None,
+    deposit: int | None = None,
+    status: str | None = None
+) -> Order | None:
+    """
+    Пометить заказ как оплаченный, обновить дополнительные поля и вернуть объект Order
+    (или None, если не найден / уже оплачен).
+    """
+    async with async_session() as session:
+        order: Order | None = await session.get(Order, order_id)
+        if not order or order.is_paid:
+            return None
+
+        order.is_paid = True
+        if quantity is not None:
+            order.quantity = quantity
+        if total_price is not None:
+            order.total_price = total_price
+        if deposit is not None:
+            order.deposit = deposit
+        if status is not None:
+            order.status = status
+
+        await session.commit()
+        await session.refresh(order)
         return order

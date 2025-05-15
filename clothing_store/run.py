@@ -2,6 +2,9 @@ import os
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher
+
+from clothing_store.admin.handlers.confirmation import status_router
+from clothing_store.users.account import account_router
 from clothing_store.users.handlers import router
 from clothing_store.admin.handlers.admin_menu import admin_router
 from clothing_store.admin.handlers.add_item import add_item_router
@@ -11,6 +14,8 @@ from clothing_store.admin.handlers.category import category_router
 from clothing_store.users.orders import order_router
 from clothing_store.database.models import async_main
 from dotenv import load_dotenv
+
+from clothing_store.users.payment import payment_router
 
 
 async def main():
@@ -25,6 +30,9 @@ async def main():
     dp.include_router(upd_item_router)
     dp.include_router(category_router)
     dp.include_router(order_router)
+    dp.include_router(account_router)
+    dp.include_router(payment_router)
+    dp.include_router(status_router)
     await dp.start_polling(bot)
 
 if __name__ == '__main__':

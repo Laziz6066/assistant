@@ -39,7 +39,22 @@ class AddOrder(StatesGroup):
     shipping_method = State()
 
 
-class Register(StatesGroup):
+class RegisterOrder(StatesGroup):
     full_name = State()
     phone = State()
     address = State()
+
+
+class PersonalAccount(StatesGroup):
+    full_name = State()
+    phone = State()
+    date_of_birth = State()
+
+
+class SetPaidSG(StatesGroup):
+    quantity = State()
+    total_price = State()
+    deposit = State()
+    status = State()
+    waiting_order_id = State()
+    confirmation = State()
