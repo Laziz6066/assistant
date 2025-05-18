@@ -6,6 +6,7 @@ from sqlalchemy import select, update, delete
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import AsyncGenerator
+from sqlalchemy.exc import NoResultFound
 
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
@@ -158,14 +159,26 @@ async def update_user(user_id: int, **fields):
         await session.commit()
 
 
-async def add_order(photo: list | None = None, shipping_method: str | None = None,
-                    user: int | None = None, item_id: int | None = None,
-                    quantity: int | None = None, total_price: int | None = None,
-                    status: str | None = None):
+async def add_order(
+    photo: list | None = None,
+    shipping_method: str | None = None,
+    user_id: int | None = None,  # Изменено с user на user_id
+    item_id: int | None = None,
+    quantity: int | None = None,
+    total_price: int | None = None,
+    status: str | None = None
+):
     async with async_session() as session:
-        order = Order(photo=photo or [], shipping_method=shipping_method, user=user,
-                      item_id=item_id, quantity=quantity, total_price=total_price,
-                      status=status, created_at=datetime.now(UTC))
+        order = Order(
+            photo=photo or [],
+            shipping_method=shipping_method,
+            user_id=user_id,  # Используем user_id вместо user
+            item_id=item_id,
+            quantity=quantity,
+            total_price=total_price,
+            status=status,
+            created_at=datetime.now(UTC)
+        )
         session.add(order)
         await session.commit()
         return order
@@ -221,3 +234,41 @@ async def get_order(order_id: int) -> Order | None:
     """Вернуть Order по первичному ключу или None."""
     async with async_session() as session:
         return await session.get(Order, order_id)
+
+
+async def get_user_orders(user_id: int):
+    async with async_session() as session:
+        result = await session.scalars(
+            select(Order)
+            .where(Order.user == user_id)
+            .order_by(Order.created_at.desc())
+        )
+        return result.all()
+
+async def get_bonus_balance(user_id: int):
+    async with async_session() as session:
+        result = await session.scalar(
+            select(User.bonus_balance)
+            .where(User.tg_id == user_id)
+        )
+        return result or 0
+
+
+async def get_recent_orders(limit: int = 10):
+    async with async_session() as session:
+        result = await session.scalars(
+            select(Order)
+            .order_by(Order.created_at.desc())
+            .limit(limit)
+            .options(selectinload(Order.user))
+        )
+        return result.all()
+
+async def update_order_status(order_id: int, status: str, is_delivered: bool = False):
+    async with async_session() as session:
+        await session.execute(
+            update(Order)
+            .where(Order.id == order_id)
+            .values(status=status, is_delivered=is_delivered)
+        )
+        await session.commit()

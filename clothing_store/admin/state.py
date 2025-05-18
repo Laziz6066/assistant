@@ -58,3 +58,17 @@ class SetPaidSG(StatesGroup):
     deposit = State()
     status = State()
     confirmation = State()
+
+
+class UpdateOrderStatus(StatesGroup):
+    """
+    Состояния для изменения статуса заказа администратором
+    """
+    select_order = State()
+    select_status = State()
+    confirm_delivery = State()
+    add_comment = State()
+
+
+class OrderStates(StatesGroup):
+    waiting_for_phone = State()

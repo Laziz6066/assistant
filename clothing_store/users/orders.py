@@ -145,7 +145,7 @@ async def order_shipping(message: Message, state: FSMContext, bot: Bot):
     order = await rq.add_order(
         photo=photo_id,
         shipping_method=data['shipping_method'],
-        user=db_user.id
+        user_id=db_user.id
     )
 
     local_dt = order.created_at.astimezone(UZ_TZ)

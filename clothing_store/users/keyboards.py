@@ -1,7 +1,7 @@
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from dotenv import load_dotenv
 from clothing_store.database.requests import get_categories, get_items
-from aiogram.utils.keyboard import InlineKeyboardBuilder
 from clothing_store.config import ADMINS
 import clothing_store.database.requests as rq
 from clothing_store.config import text_main_menu_key, text_get_contacts
@@ -28,8 +28,9 @@ async def get_main_keyboard(user_id: int) -> ReplyKeyboardMarkup:
         [KeyboardButton(text=text_main_menu_key[lang_choice]['bonuses']),
          KeyboardButton(text=text_main_menu_key[lang_choice]['account'])],
 
-        [KeyboardButton(text=text_main_menu_key[lang_choice]['support']),
-         KeyboardButton(text=text_main_menu_key[lang_choice]['change_lang'])]]
+        [KeyboardButton(text=text_main_menu_key[lang_choice]['tracking']),
+         KeyboardButton(text=text_main_menu_key[lang_choice]['change_lang'])],
+        [KeyboardButton(text=text_main_menu_key[lang_choice]['support'])]]
 
 
     if user_id in ADMINS:

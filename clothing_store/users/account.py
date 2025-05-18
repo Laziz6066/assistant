@@ -1,6 +1,4 @@
 from datetime import datetime
-import clothing_store.users.keyboards as kb
-from clothing_store import config
 from aiogram import Router, F
 from aiogram.types import (Message, ReplyKeyboardRemove,
                            KeyboardButton, ReplyKeyboardMarkup)

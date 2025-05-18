@@ -1,6 +1,7 @@
 from aiogram import F, Router
 from aiogram.filters import CommandStart
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 import clothing_store.users.keyboards as kb
 import clothing_store.database.requests as rq
 from clothing_store import config
@@ -16,12 +17,12 @@ async def cmd_start(message: Message):
     lang_choice = await rq.get_user(message.from_user.id)
     if lang_choice:
         keyboard = await kb.get_main_keyboard(message.from_user.id)
-        await message.answer(text=config.text_main_menu[lang_choice], reply_markup=keyboard)
+        await message.answer(config.text_main_menu[lang_choice], reply_markup=keyboard)
     else:
         await message.answer_photo(
             photo=config.main_photo,
             caption="*Можно написать приветственный текст и отправить фото.\nВыберите язык:",
-            reply_markup=keyboard
+            reply_markup=keyboard,
         )
 
 
@@ -33,28 +34,38 @@ async def change_language(message: Message):
     await message.answer(text, reply_markup=keyboard)
 
 
+# ─────────────────────────────── Выбор языка ────────────────────────────────
 @router.message(F.text.in_({'🇷🇺 Русский', "🇺🇿 O'zbekcha"}))
 async def language_selected(message: Message):
+    """
+    Первый раз — создаём пользователя, дальше просто меняем язык.
+    """
     lang_mapping = {'🇷🇺 Русский': 'ru', "🇺🇿 O'zbekcha": 'uz'}
     selected_lang = lang_mapping.get(message.text)
 
     async with rq.async_session() as session:
         user_exists = await rq.user_exists(message.from_user.id, session)
-        if await rq.user_exists(message.from_user.id, session):
+
+        if user_exists:
+            # запись уже есть — только обновляем язык
             await rq.update_user_language(message.from_user.id, selected_lang, session)
         else:
-            await rq.add_user(message.from_user.id, message.from_user.first_name, selected_lang, session)
-        if not user_exists:
-            await rq.add_user(message.from_user.id, message.from_user.first_name, selected_lang, session)
-
-    print("selected_lang: ", selected_lang)
+            # нового пользователя сохраняем в базу
+            await rq.add_user(
+                message.from_user.id,
+                message.from_user.first_name,
+                selected_lang,
+                session,
+            )
 
     keyboard = await kb.get_main_keyboard(message.from_user.id)
-    lang_choice = await rq.get_user(message.from_user.id)
-
-    print("lang_choice: ", lang_choice)
-    text = "Выбрано: 🇷🇺 Русский" if selected_lang == 'ru' else "Tanlandi: 🇺🇿 O'zbekcha"
+    text = (
+        "Выбрано: 🇷🇺 Русский"
+        if selected_lang == 'ru'
+        else "Tanlandi: 🇺🇿 O'zbekcha"
+    )
     await message.answer(text, reply_markup=keyboard)
+
 
 
 @router.message(F.text.in_({'Контакты', 'Kontaktlar'}))
@@ -173,3 +184,71 @@ async def catalog_main(callback: CallbackQuery):
     await callback.answer()
 
 
+@router.message(F.text == "Мои баллы")
+async def show_balance(message: Message):
+    user = await rq.get_user_reg(message.from_user.id)
+    if not user:
+        await message.answer("Сначала зарегистрируйтесь!")
+        return
+
+    level = "Новичок"
+    if user.total_spent >= 7_000_000:
+        level = "Платиновый"
+    elif user.total_spent >= 3_000_000:
+        level = "Золотой"
+    elif user.total_spent >= 1_000_000:
+        level = "Серебряный"
+
+    await message.answer(
+        f"Баланс: <b>{user.bonus_balance} баллов</b>\n"
+        f"Текущий уровень: <b>{level}</b>\n"
+        f"Всего покупок на сумму: <b>{user.total_spent:,} UZS</b>\n\n"
+        f"100 баллов = 1 000 UZS скидки", parse_mode='HTML'
+    )
+
+
+@router.message(F.text == "Пригласить друга")
+async def invite_friend(message: Message):
+    user = await rq.get_user_reg(message.from_user.id)
+    if not user:
+        await message.answer("Сначала зарегистрируйтесь!")
+        return
+
+    if not user.referral_code:
+        # Генерируем уникальный код
+        code = f"REF{message.from_user.id:06d}"
+        await rq.update_user(message.from_user.id, referral_code=code)
+    else:
+        code = user.referral_code
+
+    await message.answer(
+        "Пригласите друзей и получайте бонусы!\n\n"
+        f"Ваш промокод: <code>{code}</code>\n\n"
+        "Когда друг сделает первый заказ и укажет ваш промокод, "
+        "вы получите 3000 бонусных баллов, а друг - 1000 баллов."
+    )
+
+
+@router.message(F.text == "Отследить заказ")
+async def track_order(message: Message):
+    await message.answer(
+        "Введите номер вашего заказа или выберите из списка:",
+        reply_markup=await get_user_orders_keyboard(message.from_user.id)
+    )
+
+
+async def get_user_orders_keyboard(user_id: int):
+    user = await rq.get_user_reg(user_id)
+    if not user:
+        return None
+
+    orders = await rq.get_user_orders(user.id)
+    keyboard = InlineKeyboardBuilder()
+
+    for order in orders:
+        keyboard.add(InlineKeyboardButton(
+            text=f"Заказ #{order.id} - {order.status}",
+            callback_data=f"order_{order.id}"
+        ))
+
+    return keyboard.adjust(1).as_markup()

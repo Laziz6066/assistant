@@ -11,20 +11,22 @@ text_main_menu_key = {
     'ru': {
         'stock': 'Товары в наличии',
         'order': 'На заказ',
-        'bonuses': 'Бонусы',
+        'bonuses': 'Мои баллы',
         'account': 'Личный кабинет',
         'support': 'Поддержка',
         'change_lang': 'Сменить язык',
         'about': 'О нас',
+        'tracking': "Отследить заказ",
     },
     'uz': {
         'stock': 'Bor mahsulotlar',
         'order': 'Buyurtma',
-        'bonuses': 'Bonuslar',
+        'bonuses': 'Mening ballarim',
         'account': 'Shaxsiy kabinet',
         'support': "Qo'llab-quvvatlash",
         'change_lang': "Tilni o'zgartirish",
         'about': 'Biz haqimizda',
+        'tracking': "Buyurtmani kuzatib boring",
     }
 }
 

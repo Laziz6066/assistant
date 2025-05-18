@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime, date, UTC
 from sqlalchemy import BigInteger, ForeignKey, String, DateTime, Date, Integer, Numeric
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
@@ -35,6 +35,17 @@ class User(Base):
     bonus_balance: Mapped[int] = mapped_column(Integer, default=0)
     discount_rate: Mapped[int] = mapped_column(Integer, default=0)
 
+    referral_code: Mapped[str | None] = mapped_column(String(32), unique=True, nullable=True)
+    used_referral_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    telegram_subscribed: Mapped[bool] = mapped_column(default=False)
+    instagram_subscribed: Mapped[bool] = mapped_column(default=False)
+    feedback_given: Mapped[bool] = mapped_column(default=False)
+    orders: Mapped[list["Order"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+
 
 class Category(Base):
     __tablename__ = "categories"
@@ -69,7 +80,16 @@ class Order(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     photo: Mapped[list] = mapped_column(JSON)
     shipping_method: Mapped[str] = mapped_column(String(500))
-    user: Mapped[int] = mapped_column(ForeignKey("users.id"))
+
+    user: Mapped["User"] = relationship(
+        back_populates="orders",
+        lazy="selectin"
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False
+    )
+
     item_id:    Mapped[int | None] = mapped_column(
         ForeignKey("items.id", ondelete="SET NULL"),
         nullable=True,
@@ -85,7 +105,21 @@ class Order(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     is_paid: Mapped[bool] = mapped_column(default=False)
     is_delivered: Mapped[bool] = mapped_column(default=False)
+    is_bonus_calculated: Mapped[bool] = mapped_column(default=False)
 
+
+class BonusTransaction(Base):
+    __tablename__ = "bonus_transactions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    amount: Mapped[int] = mapped_column()
+    description: Mapped[str] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=datetime.now(UTC)
+    )
+    order_id: Mapped[int | None] = mapped_column(ForeignKey("orders.id"), nullable=True)
 
 
 async def async_main():

@@ -9,7 +9,8 @@ async def admin_keyboard(user_id: int) -> ReplyKeyboardMarkup | None:
         buttons = [
             [KeyboardButton(text='Добавить категорию'), KeyboardButton(text='Удалить категорию')],
             [KeyboardButton(text='Добавить товар'), KeyboardButton(text='Удалить товар')],
-            [KeyboardButton(text='Подтвердить'), KeyboardButton(text='На главную')]
+            [KeyboardButton(text='Управление заказами'), KeyboardButton(text='Подтвердить')],
+            [KeyboardButton(text='На главную')]
         ]
         return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
     else:
