@@ -5,7 +5,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from clothing_store.admin.state import UpdateOrderStatus
 import clothing_store.database.requests as rq
-from clothing_store.database.models import Order
+from clothing_store.database.models import Order, User
 from clothing_store.users.bonus import BonusService
 from clothing_store.config import ADMINS
 from aiogram.types import InlineKeyboardButton
@@ -108,7 +108,6 @@ async def update_order_status(callback: CallbackQuery, bot: Bot):
     new_status = status_map.get(status_type, "Неизвестный статус")
     is_delivered = status_type == "delivered"
 
-    # Обновляем статус заказа
     async with async_session() as session:
         order = await session.get(Order, order_id)
         if not order:
@@ -117,12 +116,18 @@ async def update_order_status(callback: CallbackQuery, bot: Bot):
 
         order.status = new_status
         if is_delivered:
-            order.is_delivered = True
-            order.is_bonus_calculated = True  # Устанавливаем флаг расчета бонусов
-            await BonusService.check_and_apply_bonuses(order.id)
+            order.is_delivered = True  # Помечаем заказ как доставленный
+            # **Не устанавливаем order.is_bonus_calculated вручную здесь** (убран прежний order.is_bonus_calculated = True)
+            # Получаем пользователя, связанного с заказом, и обновляем его общую сумму потраченного
+            user = await session.get(User, order.user_id)
+            if user:
+                user.total_spent = (user.total_spent or 0) + (order.total_price or 0)  # увеличиваем total_spent пользователя на сумму заказа
 
         await session.commit()
 
+    if is_delivered:
+        await BonusService.check_and_apply_bonuses(
+            order.id)  # Начисляем бонусы после коммита, когда заказ помечен доставленным
     try:
         user_id = order.user_id if hasattr(order, 'user_id') else order.user
         user = await rq.get_user_by_pk(user_id)

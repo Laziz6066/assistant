@@ -33,23 +33,9 @@ class BonusService:
 
             if order.total_price:
                 bonus_amount = await BonusService.calculate_bonus(
-                    order.user,  # Используем существующее поле user
-                    order.total_price
-                )
-                await BonusService.add_bonus(
-                    order.user,
-                    bonus_amount,
-                    f"Бонусы за заказ #{order.id}",
-                    order.id
-                )
-
-                await BonusService.add_bonus(
-                    order.user,  # Используем существующее поле user
-                    bonus_amount,
-                    f"Бонусы за заказ #{order.id}",
-                    order.id
-                )
-
+                        order.user_id, order.total_price)
+                await BonusService.add_bonus( order.user_id, bonus_amount,
+                        f"Бонусы за заказ #{order.id}", order.id)
             order.is_bonus_calculated = True
             await session.commit()
 
