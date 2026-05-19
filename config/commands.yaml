@@ -1,0 +1,54 @@
+- intent: open_app
+  examples: ["открой {app}", "запусти {app}", "open {app}", "run {app}"]
+  slots: {app: string}
+- intent: close_app
+  examples: ["закрой {app}", "закрой приложение {app}", "close {app}"]
+  slots: {app: string}
+- intent: minimize_all
+  examples: ["сверни всё", "сверни все окна", "minimize all"]
+  slots: {}
+- intent: close_window
+  examples: ["закрой текущее окно", "закрой окно", "close window"]
+  slots: {}
+- intent: switch_window
+  examples: ["переключи окно", "следующее окно", "switch window"]
+  slots: {}
+- intent: web_search
+  examples: ["найди в гугле {query}", "загугли {query}", "search {query}"]
+  slots: {query: string}
+- intent: open_url
+  examples: ["открой сайт {url}", "перейди на {url}"]
+  slots: {url: string}
+- intent: open_bookmark
+  examples: ["открой закладку {name}", "открой {name}"]
+  slots: {name: string}
+- intent: open_path
+  examples: ["открой папку {name}", "открой директорию {name}"]
+  slots: {name: string}
+- intent: clipboard_copy
+  examples: ["скопируй", "копировать", "copy"]
+  slots: {}
+- intent: clipboard_paste
+  examples: ["вставь", "вставить", "paste"]
+  slots: {}
+- intent: clipboard_read
+  examples: ["прочитай буфер", "что в буфере"]
+  slots: {}
+- intent: volume_set
+  examples: ["громкость {level:int}", "поставь громкость на {level:int}"]
+  slots: {level: int}
+- intent: volume_up
+  examples: ["сделай погромче", "громче", "volume up"]
+  slots: {}
+- intent: volume_down
+  examples: ["сделай потише", "тише", "volume down"]
+  slots: {}
+- intent: lock_screen
+  examples: ["заблокируй экран", "блокировка", "lock"]
+  slots: {}
+- intent: shutdown
+  examples: ["выключи компьютер", "выключить компьютер"]
+  slots: {}
+- intent: reboot
+  examples: ["перезагрузи компьютер", "перезагрузка"]
+  slots: {}
