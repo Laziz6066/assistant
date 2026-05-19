@@ -1,7 +1,8 @@
 from voice_assistant.executor.registry import global_registry
-from voice_assistant.executor.plugins import apps
+from voice_assistant.executor.plugins import apps, windows
 
 
 def register_all() -> None:
     reg = global_registry()
     apps.register(reg)
+    windows.register(reg)

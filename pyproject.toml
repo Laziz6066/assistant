@@ -8,6 +8,7 @@ dependencies = [
   "sounddevice>=0.4",
   "numpy",
   "pynput",
+  "pyautogui",
   "pygetwindow; platform_system=='Windows'",
   "pywin32; platform_system=='Windows'",
   "pycaw; platform_system=='Windows'",
