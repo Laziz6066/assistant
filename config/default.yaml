@@ -1,0 +1,29 @@
+audio:
+  input_device: null
+  sample_rate: 16000
+asr:
+  engine: faster-whisper
+  model: medium
+  language: ru
+  device: cuda
+  compute_type: int8_float16
+  min_confidence: 0.4
+vad:
+  threshold: 0.5
+  min_speech_ms: 300
+  max_speech_ms: 15000
+hotkey:
+  push_to_talk: ctrl_r
+nlu:
+  fuzzy_threshold: 85
+log_level: INFO
+store_transcripts: false
+app_aliases:
+  телеграм: telegram
+  телега: telegram
+  браузер: firefox
+  код: code
+bookmarks:
+  ютуб: https://youtube.com
+path_aliases:
+  загрузки: "~/Downloads"
