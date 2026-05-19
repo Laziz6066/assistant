@@ -52,3 +52,6 @@
 - intent: reboot
   examples: ["перезагрузи компьютер", "перезагрузка"]
   slots: {}
+- intent: confirm_yes
+  examples: ["да", "подтверждаю", "yes"]
+  slots: {}
