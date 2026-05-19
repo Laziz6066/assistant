@@ -10,6 +10,8 @@ dependencies = [
   "pynput",
   "pygetwindow; platform_system=='Windows'",
   "pywin32; platform_system=='Windows'",
+  "pycaw; platform_system=='Windows'",
+  "comtypes; platform_system=='Windows'",
   "rapidfuzz",
   "pydantic>=2",
   "pydantic-settings",
