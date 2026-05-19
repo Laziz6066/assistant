@@ -1,0 +1,37 @@
+[project]
+name = "voice-assistant"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "faster-whisper>=1.0",
+  "silero-vad>=5.0",
+  "sounddevice>=0.4",
+  "numpy",
+  "pynput",
+  "pygetwindow; platform_system=='Windows'",
+  "pywin32; platform_system=='Windows'",
+  "rapidfuzz",
+  "pydantic>=2",
+  "pydantic-settings",
+  "pyyaml",
+  "loguru",
+  "plyer",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-cov", "pytest-mock"]
+
+[project.scripts]
+voice-assistant = "voice_assistant.main:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+markers = ["windows: requires Windows platform"]
