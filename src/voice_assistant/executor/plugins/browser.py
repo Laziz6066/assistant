@@ -17,7 +17,12 @@ def register(reg: Registry) -> None:
         url = slots.get("url", "").strip()
         if not url:
             return ExecutionResult.fail("empty url", "Какой адрес?")
-        if not url.startswith(("http://", "https://")):
+        if url.startswith(("http://", "https://")):
+            pass
+        elif ":" in url.split("/", 1)[0]:
+            return ExecutionResult.fail(
+                f"unsafe url scheme: {url!r}", "Не могу открыть этот адрес")
+        else:
             url = "https://" + url
         webbrowser.open(url)
         return ExecutionResult.ok(f"opened {url}", "Открываю")

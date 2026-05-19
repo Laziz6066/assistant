@@ -44,3 +44,13 @@ def test_unknown_bookmark_fails():
     br.register(reg)
     res = reg.dispatch(Intent("open_bookmark", {"name": "несуществует"}), _ctx())
     assert res.success is False
+
+
+def test_open_url_rejects_dangerous_schemes():
+    reg = Registry()
+    br.register(reg)
+    for bad in ("file:///C:/Windows/system32", "javascript:alert(1)", "data:text/html,x"):
+        with patch.object(br.webbrowser, "open") as op:
+            res = reg.dispatch(Intent("open_url", {"url": bad}), _ctx())
+        op.assert_not_called()
+        assert res.success is False
