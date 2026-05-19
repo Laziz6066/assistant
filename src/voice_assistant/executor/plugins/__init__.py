@@ -1,5 +1,5 @@
 from voice_assistant.executor.registry import global_registry
-from voice_assistant.executor.plugins import apps, windows, browser
+from voice_assistant.executor.plugins import apps, windows, browser, files
 
 
 def register_all() -> None:
@@ -7,3 +7,4 @@ def register_all() -> None:
     apps.register(reg)
     windows.register(reg)
     browser.register(reg)
+    files.register(reg)
