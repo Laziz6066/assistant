@@ -116,3 +116,21 @@ def test_app_config_has_wake_section_with_defaults():
     cfg = AppConfig()
     assert cfg.wake.enabled is False
     assert cfg.wake.model == "hey_jarvis"
+
+
+from voice_assistant.config import TrayConfig
+
+
+def test_tray_config_default_enabled():
+    cfg = TrayConfig()
+    assert cfg.enabled is True
+
+
+def test_tray_config_accepts_disabled():
+    cfg = TrayConfig(enabled=False)
+    assert cfg.enabled is False
+
+
+def test_app_config_has_tray_section_default_enabled():
+    cfg = AppConfig()
+    assert cfg.tray.enabled is True

@@ -81,6 +81,10 @@ class WakeConfig(BaseModel):
         return v
 
 
+class TrayConfig(BaseModel):
+    enabled: bool = True
+
+
 class AppConfig(BaseModel):
     audio: AudioConfig = Field(default_factory=AudioConfig)
     asr: ASRConfig = Field(default_factory=ASRConfig)
@@ -90,6 +94,7 @@ class AppConfig(BaseModel):
     tts: TTSConfig = Field(default_factory=TTSConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
     wake: WakeConfig = Field(default_factory=WakeConfig)
+    tray: TrayConfig = Field(default_factory=TrayConfig)
     log_level: str = "INFO"
     store_transcripts: bool = False
     app_aliases: dict[str, str] = Field(default_factory=dict)
