@@ -51,3 +51,26 @@ tts:
 - [ ] Ctrl+C during TTS playback → shuts down within 2 s
 - [ ] Disconnect network, delete voice from `~/.voice-assistant/voices/` → assistant starts text-only with ERROR log
 - [ ] Set `tts.enabled: false` → no Piper import, normal text-only operation
+
+## LLM Fallback (опционально)
+
+Если правила в `config/commands.yaml` не сматчили команду — спросить локальный LLM:
+
+1. Установи ollama: https://ollama.com/download
+2. Запусти сервер: `ollama serve` (в фоне или как сервис)
+3. Спулли модель: `ollama pull qwen2.5:3b-instruct` (~2 GB)
+4. В `config/default.yaml` поставь `llm.enabled: true`
+
+LLM работает локально (по умолчанию `http://localhost:11434`). Транскрипты не уходят в облако.
+
+Если ollama не запущена или модель не скачана — ассистент работает без LLM-fallback, без ошибок.
+
+## LLM fallback verification checklist
+
+- [ ] `llm.enabled: false` (default): assistant starts identically to before, no ollama dependency
+- [ ] `llm.enabled: true` + ollama running + model pulled: rules-known command ("открой блокнот") works as before — no LLM call (verify via DEBUG log silence)
+- [ ] LLM-only command ("запусти мне телегу пожалуйста"): resolved to `open_app{app="telegram"}` (assuming alias)
+- [ ] LLM-only command, ambiguous ("распакуй файлик"): `Intent.unknown()` → "Не понял, повтори"
+- [ ] ollama not running while `llm.enabled: true`: first attempt → WARNING log, subsequent attempts within 60 s → no log spam, all "Не понял, повтори"
+- [ ] Model not pulled: ERROR log with hint `ollama pull qwen2.5:3b-instruct`, permanent unreachable for that process
+- [ ] LLM-resolved destructive intent ("выключи нахрен" → `shutdown`): triggers existing confirmation flow — destructive intents NOT bypassed
