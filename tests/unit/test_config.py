@@ -80,3 +80,39 @@ def test_app_config_has_llm_section_with_defaults():
     cfg = AppConfig()
     assert cfg.llm.enabled is False
     assert cfg.llm.model == "qwen2.5:3b-instruct"
+
+
+from voice_assistant.config import WakeConfig
+
+
+def test_wake_config_default_values():
+    cfg = WakeConfig()
+    assert cfg.enabled is False
+    assert cfg.model == "hey_jarvis"
+    assert cfg.threshold == 0.5
+    assert cfg.silence_ms == 800
+    assert cfg.max_speech_ms == 10000
+    assert cfg.models_dir.is_absolute()
+    assert cfg.models_dir.parts[-2:] == (".voice-assistant", "wake-models")
+
+
+def test_wake_config_expands_tilde_in_models_dir():
+    cfg = WakeConfig(models_dir="~/custom/wake")
+    assert str(cfg.models_dir).startswith(str(Path.home()))
+    assert cfg.models_dir.parts[-2:] == ("custom", "wake")
+
+
+def test_wake_config_accepts_overrides():
+    cfg = WakeConfig(enabled=True, model="alexa", threshold=0.7,
+                    silence_ms=500, max_speech_ms=15000)
+    assert cfg.enabled is True
+    assert cfg.model == "alexa"
+    assert cfg.threshold == 0.7
+    assert cfg.silence_ms == 500
+    assert cfg.max_speech_ms == 15000
+
+
+def test_app_config_has_wake_section_with_defaults():
+    cfg = AppConfig()
+    assert cfg.wake.enabled is False
+    assert cfg.wake.model == "hey_jarvis"

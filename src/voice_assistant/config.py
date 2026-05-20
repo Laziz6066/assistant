@@ -61,6 +61,26 @@ class LLMConfig(BaseModel):
     min_confidence: float = 0.5
 
 
+class WakeConfig(BaseModel):
+    enabled: bool = False
+    model: str = "hey_jarvis"
+    threshold: float = 0.5
+    silence_ms: int = 800
+    max_speech_ms: int = 10000
+    models_dir: Path = Field(
+        default_factory=lambda: Path.home() / ".voice-assistant" / "wake-models"
+    )
+
+    @field_validator("models_dir", mode="before")
+    @classmethod
+    def _expand_user(cls, v):
+        if isinstance(v, str):
+            return Path(v).expanduser()
+        if isinstance(v, Path):
+            return v.expanduser()
+        return v
+
+
 class AppConfig(BaseModel):
     audio: AudioConfig = Field(default_factory=AudioConfig)
     asr: ASRConfig = Field(default_factory=ASRConfig)
@@ -69,6 +89,7 @@ class AppConfig(BaseModel):
     nlu: NLUConfig = Field(default_factory=NLUConfig)
     tts: TTSConfig = Field(default_factory=TTSConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
+    wake: WakeConfig = Field(default_factory=WakeConfig)
     log_level: str = "INFO"
     store_transcripts: bool = False
     app_aliases: dict[str, str] = Field(default_factory=dict)
