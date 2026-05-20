@@ -344,3 +344,87 @@ def test_build_uses_plain_rules_router_when_llm_disabled(tmp_path, monkeypatch):
     pipe, qs, capture, ptt, vad, feedback = _build(str(tmp_path / "default.yaml"))
     assert isinstance(pipe.nlu, RulesRouter)
     assert not isinstance(pipe.nlu, LLMFallbackRouter)
+
+
+def test_build_wraps_in_composite_when_wake_enabled(tmp_path, monkeypatch):
+    """When wake.enabled, _build wraps PushToTalk and WakeWordActivator in a
+    CompositeActivator."""
+    from voice_assistant.activation.composite import CompositeActivator
+    from voice_assistant.activation.wake_word import WakeWordActivator
+
+    monkeypatch.setattr("voice_assistant.main.FasterWhisperEngine", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.AudioCapture", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.PushToTalk", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.VADSegmenter", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.register_all", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.WakeModelStore", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.WakeWordActivator", MagicMock())
+
+    (tmp_path / "commands.yaml").write_text(
+        '- intent: noop\n  examples: ["noop"]\n  slots: {}\n',
+        encoding="utf-8")
+    (tmp_path / "default.yaml").write_text(
+        "tts:\n  enabled: false\n"
+        "llm:\n  enabled: false\n"
+        "wake:\n  enabled: true\n  model: hey_jarvis\n"
+        f"  models_dir: {tmp_path / 'wake-models'}\n",
+        encoding="utf-8")
+
+    from voice_assistant.main import _build
+    pipe, qs, capture, ptt, vad, feedback = _build(str(tmp_path / "default.yaml"))
+    assert isinstance(ptt, CompositeActivator)
+
+
+def test_build_keeps_plain_ptt_when_wake_disabled(tmp_path, monkeypatch):
+    from voice_assistant.activation.composite import CompositeActivator
+
+    monkeypatch.setattr("voice_assistant.main.FasterWhisperEngine", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.AudioCapture", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.PushToTalk", lambda *a, **k: MagicMock(name="ptt"))
+    monkeypatch.setattr("voice_assistant.main.VADSegmenter", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.register_all", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
+
+    (tmp_path / "commands.yaml").write_text(
+        '- intent: noop\n  examples: ["noop"]\n  slots: {}\n',
+        encoding="utf-8")
+    (tmp_path / "default.yaml").write_text(
+        "tts:\n  enabled: false\n"
+        "llm:\n  enabled: false\n"
+        "wake:\n  enabled: false\n",
+        encoding="utf-8")
+
+    from voice_assistant.main import _build
+    pipe, qs, capture, ptt, vad, feedback = _build(str(tmp_path / "default.yaml"))
+    assert not isinstance(ptt, CompositeActivator)
+
+
+def test_build_drops_wake_when_store_fails(tmp_path, monkeypatch):
+    """If WakeModelStore raises, _build falls back to plain PushToTalk."""
+    from voice_assistant.activation.composite import CompositeActivator
+
+    monkeypatch.setattr("voice_assistant.main.FasterWhisperEngine", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.AudioCapture", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.PushToTalk", lambda *a, **k: MagicMock(name="ptt"))
+    monkeypatch.setattr("voice_assistant.main.VADSegmenter", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.register_all", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
+
+    bad_store = MagicMock(side_effect=RuntimeError("disk full"))
+    monkeypatch.setattr("voice_assistant.main.WakeModelStore", bad_store)
+
+    (tmp_path / "commands.yaml").write_text(
+        '- intent: noop\n  examples: ["noop"]\n  slots: {}\n',
+        encoding="utf-8")
+    (tmp_path / "default.yaml").write_text(
+        "tts:\n  enabled: false\n"
+        "llm:\n  enabled: false\n"
+        "wake:\n  enabled: true\n  model: hey_jarvis\n"
+        f"  models_dir: {tmp_path / 'wake-models'}\n",
+        encoding="utf-8")
+
+    from voice_assistant.main import _build
+    pipe, qs, capture, ptt, vad, feedback = _build(str(tmp_path / "default.yaml"))
+    # Wake construction failed → ptt is the plain PushToTalk, not a Composite
+    assert not isinstance(ptt, CompositeActivator)

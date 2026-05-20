@@ -12,7 +12,11 @@ from voice_assistant.utils.logging import setup_logging
 from voice_assistant.utils.platform import get_platform_ops
 from voice_assistant.audio.capture import AudioCapture
 from voice_assistant.audio.vad import VADSegmenter
+from voice_assistant.activation.base import Activator
+from voice_assistant.activation.composite import CompositeActivator
 from voice_assistant.activation.hotkey import PushToTalk
+from voice_assistant.activation.models_store import WakeModelStore
+from voice_assistant.activation.wake_word import WakeWordActivator
 from voice_assistant.asr.base import ASREngine
 from voice_assistant.asr.faster_whisper_engine import FasterWhisperEngine
 from voice_assistant.nlu.base import NLURouter
@@ -62,7 +66,7 @@ class Pipeline:
 
 
 def _build(config_path: str) -> tuple[Pipeline, PipelineQueues,
-                                       AudioCapture, PushToTalk, VADSegmenter,
+                                       AudioCapture, Activator, VADSegmenter,
                                        FeedbackSink]:
     cfg = load_config(config_path)
     setup_logging(level=cfg.log_level)
@@ -115,7 +119,25 @@ def _build(config_path: str) -> tuple[Pipeline, PipelineQueues,
             raw = capture.ring.snapshot()[mark:]
             qs.speech_q.put(raw)
 
-    ptt = PushToTalk(cfg.hotkey.push_to_talk, on_state_change)
+    ptt: Activator = PushToTalk(cfg.hotkey.push_to_talk, on_state_change)
+    activators: list[Activator] = [ptt]
+    if cfg.wake.enabled:
+        try:
+            wake_store = WakeModelStore(cfg.wake.models_dir)
+            wake = WakeWordActivator(
+                model=cfg.wake.model, store=wake_store,
+                capture=capture,
+                threshold=cfg.wake.threshold,
+                silence_ms=cfg.wake.silence_ms,
+                max_speech_ms=cfg.wake.max_speech_ms,
+                on_state_change=on_state_change,
+                _sample_rate=cfg.audio.sample_rate,
+            )
+            activators.append(wake)
+        except Exception as e:
+            logger.error(f"wake disabled — setup failed: {e}")
+    if len(activators) > 1:
+        ptt = CompositeActivator(activators)
     return pipe, qs, capture, ptt, vad, feedback
 
 
