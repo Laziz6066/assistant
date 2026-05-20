@@ -17,7 +17,6 @@ _AUDIO_Q_MAXSIZE = 16
 _WORKER_GET_TIMEOUT_S = 0.5
 _STOP_JOIN_TIMEOUT_S = 2.0
 _STOP = object()  # internal sentinel
-_LOUDNESS_FLOOR = 200  # int16 peak amplitude that counts as "speech"
 
 
 class WakeWordActivator(Activator):
@@ -133,6 +132,10 @@ class WakeWordActivator(Activator):
                     self._on_state_change(True)
             else:  # COLLECTING
                 collecting_ms += chunk_ms
+                # Score-based silence: when wake model stops detecting the
+                # wake-word context (e.g. user finished speaking and quieted),
+                # silence_ms accumulates. Amplitude-based VAD would also work
+                # but score-based reuses the inference we already do per chunk.
                 if score >= self._threshold:
                     silence_ms = 0
                 else:
@@ -174,9 +177,3 @@ class WakeWordActivator(Activator):
         if reset is None:
             return
         reset()
-
-    # ---- helpers ----
-
-    @staticmethod
-    def _is_loud(chunk: np.ndarray) -> bool:
-        return bool(np.max(np.abs(chunk)) >= _LOUDNESS_FLOOR)
