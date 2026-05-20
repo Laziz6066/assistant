@@ -2,7 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 import yaml
-from pydantic import BaseModel, ValidationError, Field
+from pydantic import BaseModel, ValidationError, Field, field_validator
 
 
 class AudioConfig(BaseModel):
@@ -34,12 +34,31 @@ class NLUConfig(BaseModel):
     fuzzy_threshold: int = 85
 
 
+class TTSConfig(BaseModel):
+    enabled: bool = True
+    voice: str = "ru_RU-irina-medium"
+    voices_dir: Path = Field(
+        default_factory=lambda: Path.home() / ".voice-assistant" / "voices"
+    )
+    length_scale: float = 1.0
+
+    @field_validator("voices_dir", mode="before")
+    @classmethod
+    def _expand_user(cls, v):
+        if isinstance(v, str):
+            return Path(v).expanduser()
+        if isinstance(v, Path):
+            return v.expanduser()
+        return v
+
+
 class AppConfig(BaseModel):
     audio: AudioConfig = Field(default_factory=AudioConfig)
     asr: ASRConfig = Field(default_factory=ASRConfig)
     vad: VADConfig = Field(default_factory=VADConfig)
     hotkey: HotkeyConfig = Field(default_factory=HotkeyConfig)
     nlu: NLUConfig = Field(default_factory=NLUConfig)
+    tts: TTSConfig = Field(default_factory=TTSConfig)
     log_level: str = "INFO"
     store_transcripts: bool = False
     app_aliases: dict[str, str] = Field(default_factory=dict)
