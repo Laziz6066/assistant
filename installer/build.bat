@@ -1,6 +1,6 @@
 @echo off
 REM Build voice-assistant portable distribution.
-REM Usage: run from anywhere — this script cds to repo root automatically.
+REM Usage: run from anywhere - this script cds to repo root automatically.
 setlocal
 
 set REPO_ROOT=%~dp0..
