@@ -134,3 +134,26 @@ def test_tray_config_accepts_disabled():
 def test_app_config_has_tray_section_default_enabled():
     cfg = AppConfig()
     assert cfg.tray.enabled is True
+
+
+from voice_assistant.config import DialogConfig
+
+
+def test_dialog_config_default_values():
+    cfg = DialogConfig()
+    assert cfg.enabled is True
+    assert cfg.context_ttl_s == 60.0
+    assert cfg.context_size == 5
+
+
+def test_dialog_config_accepts_overrides():
+    cfg = DialogConfig(enabled=False, context_ttl_s=30.0, context_size=10)
+    assert cfg.enabled is False
+    assert cfg.context_ttl_s == 30.0
+    assert cfg.context_size == 10
+
+
+def test_app_config_has_dialog_section_default_enabled():
+    cfg = AppConfig()
+    assert cfg.dialog.enabled is True
+    assert cfg.dialog.context_ttl_s == 60.0
