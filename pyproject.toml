@@ -28,7 +28,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "pytest-cov", "pytest-mock"]
+dev = [
+  "pytest>=8",
+  "pytest-cov",
+  "pytest-mock",
+  "pyinstaller>=6.0",
+]
 
 [project.scripts]
 voice-assistant = "voice_assistant.main:main"
