@@ -74,3 +74,35 @@ LLM работает локально (по умолчанию `http://localhost
 - [ ] ollama not running while `llm.enabled: true`: first attempt → WARNING log, subsequent attempts within 60 s → no log spam, all "Не понял, повтори"
 - [ ] Model not pulled: ERROR log with hint `ollama pull qwen2.5:3b-instruct`, permanent unreachable for that process
 - [ ] LLM-resolved destructive intent ("выключи нахрен" → `shutdown`): triggers existing confirmation flow — destructive intents NOT bypassed
+
+## Wake word (опционально)
+
+Параллельно с PTT можно активировать ассистента голосом — скажи "hey jarvis",
+дальше команду.
+
+1. Включи в `config/default.yaml`: `wake.enabled: true`
+2. Запусти ассистента — модель (~8 MB) скачается с openWakeWord CDN при первом старте
+
+Все модели локальные, аудио не покидает машину.
+
+Если `openwakeword` не установлен или модель не скачана — wake тихо отключается,
+PTT продолжает работать.
+
+Дефолтная фраза `hey jarvis`. Альтернативы (через `wake.model`):
+- `alexa`
+- `computer`
+- `hey_mycroft`
+- Свой `.onnx` (абсолютный путь)
+
+## Wake-word verification checklist
+
+- [ ] `wake.enabled: false` (default): assistant starts identically to before
+- [ ] `wake.enabled: true`, first run: ~8 MB models download with progress log
+- [ ] Second run: wake online immediately, no download
+- [ ] Say "hey jarvis" then "открой блокнот" — notepad opens without PTT
+- [ ] 800 ms silence after the command — ASR transcribes and dispatches
+- [ ] Long command >10 s — cut off at 10 s, partial sent to ASR
+- [ ] PTT still works while wake is enabled (hold Ctrl, speak)
+- [ ] Background conversation (no wake) — no false triggers in 1 min
+- [ ] Stop openwakeword model from disk, restart: ERROR log, PTT still works
+- [ ] Ctrl+C — wake thread joins within 2 s
