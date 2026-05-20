@@ -4,6 +4,15 @@ import platform
 import subprocess
 from pathlib import Path
 
+from loguru import logger
+
+
+def _make_keyboard_controller():
+    """Lazy import of pynput.keyboard.Controller; isolated as a function
+    so tests can patch it without importing pynput in the test session."""
+    from pynput.keyboard import Controller
+    return Controller()
+
 
 class PlatformOps:
     """Windows implementation. Linux/macOS deferred to Release stage."""
@@ -39,6 +48,12 @@ class PlatformOps:
     def shutdown(self, reboot: bool = False) -> None:
         flag = "/r" if reboot else "/s"
         self._spawn(f"shutdown {flag} /t 0")
+
+    def type_text(self, text: str) -> None:
+        if not text:
+            return
+        ctrl = _make_keyboard_controller()
+        ctrl.type(text)
 
 
 def get_platform_ops() -> PlatformOps:
