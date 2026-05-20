@@ -2,6 +2,12 @@
 # returns the first regex match. Rules with literal token prefixes (e.g.
 # "открой папку", "закрой текущее окно") MUST appear before generic
 # {app}/{name} catch-alls, otherwise the greedy slot pattern shadows them.
+- intent: start_dictation
+  examples: ["начни диктовать", "режим диктовки", "диктуй"]
+  slots: {}
+- intent: stop_dictation
+  examples: ["стоп диктовка", "конец диктовки", "выход из диктовки", "выход"]
+  slots: {}
 - intent: open_path
   examples: ["открой папку {name}", "открой директорию {name}"]
   slots: {name: string}
