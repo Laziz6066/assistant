@@ -428,3 +428,52 @@ def test_build_drops_wake_when_store_fails(tmp_path, monkeypatch):
     pipe, qs, capture, ptt, vad, feedback = _build(str(tmp_path / "default.yaml"))
     # Wake construction failed → ptt is the plain PushToTalk, not a Composite
     assert not isinstance(ptt, CompositeActivator)
+
+
+def test_request_shutdown_sets_event_and_puts_stop_and_cancels_feedback():
+    import threading as _t
+    from voice_assistant.main import _request_shutdown
+    from voice_assistant.core.queues import STOP
+
+    stop_evt = _t.Event()
+    qs = MagicMock()
+    qs.speech_q = MagicMock()
+    feedback = MagicMock()
+
+    _request_shutdown(stop_evt, qs, feedback)
+
+    assert stop_evt.is_set()
+    qs.speech_q.put_nowait.assert_called_once_with(STOP)
+    feedback.cancel.assert_called_once()
+
+
+def test_request_shutdown_swallows_queue_full():
+    import queue as _q
+    import threading as _t
+    from voice_assistant.main import _request_shutdown
+
+    stop_evt = _t.Event()
+    qs = MagicMock()
+    qs.speech_q = MagicMock()
+    qs.speech_q.put_nowait.side_effect = _q.Full()
+    feedback = MagicMock()
+
+    # Must NOT raise even when queue is full
+    _request_shutdown(stop_evt, qs, feedback)
+    assert stop_evt.is_set()
+    feedback.cancel.assert_called_once()
+
+
+def test_request_shutdown_swallows_feedback_cancel_failure():
+    import threading as _t
+    from voice_assistant.main import _request_shutdown
+
+    stop_evt = _t.Event()
+    qs = MagicMock()
+    qs.speech_q = MagicMock()
+    feedback = MagicMock()
+    feedback.cancel.side_effect = RuntimeError("boom")
+
+    # Must NOT propagate the exception
+    _request_shutdown(stop_evt, qs, feedback)
+    assert stop_evt.is_set()

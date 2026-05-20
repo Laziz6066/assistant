@@ -150,6 +150,27 @@ def _build(config_path: str) -> tuple[Pipeline, PipelineQueues,
     return pipe, qs, capture, ptt, vad, feedback
 
 
+def _request_shutdown(stop_evt: threading.Event,
+                       qs: PipelineQueues,
+                       feedback: FeedbackSink) -> None:
+    """Idempotent shutdown trigger used by SIGINT and the tray Quit menu.
+
+    Sets the worker's stop event, puts the STOP sentinel onto the speech
+    queue (swallowing queue.Full), and cancels any in-flight feedback.
+    Safe to call multiple times.
+    """
+    logger.info("shutting down")
+    stop_evt.set()
+    try:
+        qs.speech_q.put_nowait(STOP)
+    except queue.Full:
+        pass
+    try:
+        feedback.cancel()
+    except Exception:
+        logger.exception("feedback.cancel during shutdown failed")
+
+
 def _worker(pipe: Pipeline, qs: PipelineQueues, vad: VADSegmenter,
             stop_evt: threading.Event) -> None:
     while not stop_evt.is_set():
@@ -182,13 +203,7 @@ def main() -> int:
     feedback.start()
 
     def _shutdown(*_):
-        logger.info("shutting down")
-        stop_evt.set()
-        qs.speech_q.put(STOP)
-        try:
-            feedback.cancel()
-        except Exception:
-            pass
+        _request_shutdown(stop_evt, qs, feedback)
 
     signal.signal(signal.SIGINT, _shutdown)
     ptt.start()
