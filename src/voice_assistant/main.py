@@ -17,6 +17,8 @@ from voice_assistant.asr.base import ASREngine
 from voice_assistant.asr.faster_whisper_engine import FasterWhisperEngine
 from voice_assistant.nlu.base import NLURouter
 from voice_assistant.nlu.rules import RulesRouter
+from voice_assistant.nlu.llm_fallback import LLMFallbackRouter
+from voice_assistant.nlu.ollama_client import OllamaClient
 from voice_assistant.executor.registry import global_registry, Registry
 from voice_assistant.executor.context import ExecutorContext
 from voice_assistant.executor.plugins import register_all
@@ -70,9 +72,19 @@ def _build(config_path: str) -> tuple[Pipeline, PipelineQueues,
     asr = FasterWhisperEngine(
         model=cfg.asr.model, device=cfg.asr.device,
         compute_type=cfg.asr.compute_type, language=cfg.asr.language)
-    nlu = RulesRouter(
+    nlu: NLURouter = RulesRouter(
         commands_path=str(Path(config_path).parent / "commands.yaml"),
         fuzzy_threshold=cfg.nlu.fuzzy_threshold)
+    if cfg.llm.enabled:
+        ollama_client = OllamaClient(
+            host=cfg.llm.host, model=cfg.llm.model,
+            timeout_s=cfg.llm.timeout_s,
+            temperature=cfg.llm.temperature,
+            min_confidence=cfg.llm.min_confidence)
+        nlu = LLMFallbackRouter(
+            primary=nlu, client=ollama_client,
+            commands_path=Path(config_path).parent / "commands.yaml",
+            app_aliases=cfg.app_aliases)
     if cfg.tts.enabled:
         try:
             store = VoiceModelStore(cfg.tts.voices_dir)

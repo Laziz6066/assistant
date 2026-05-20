@@ -289,3 +289,58 @@ def test_ptt_state_change_held_calls_feedback_cancel(monkeypatch, tmp_path):
     on_state_change = captured_callback["cb"]
     on_state_change(True)
     feedback.cancel.assert_called_once()
+
+
+def test_build_wraps_nlu_in_llm_fallback_when_enabled(tmp_path, monkeypatch):
+    """When cfg.llm.enabled, _build wraps RulesRouter in LLMFallbackRouter."""
+    from voice_assistant.nlu.llm_fallback import LLMFallbackRouter
+    from voice_assistant.nlu.rules import RulesRouter
+
+    monkeypatch.setattr("voice_assistant.main.FasterWhisperEngine", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.AudioCapture", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.PushToTalk", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.VADSegmenter", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.register_all", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
+    # Mock OllamaClient so we don't try to connect to a real server
+    monkeypatch.setattr("voice_assistant.main.OllamaClient", MagicMock())
+
+    (tmp_path / "commands.yaml").write_text(
+        '- intent: noop\n  examples: ["noop"]\n  slots: {}\n',
+        encoding="utf-8")
+    (tmp_path / "default.yaml").write_text(
+        "tts:\n  enabled: false\n"
+        "llm:\n  enabled: true\n  model: qwen2.5:3b-instruct\n",
+        encoding="utf-8")
+
+    from voice_assistant.main import _build
+    pipe, qs, capture, ptt, vad, feedback = _build(str(tmp_path / "default.yaml"))
+    assert isinstance(pipe.nlu, LLMFallbackRouter)
+    # And the primary inside is still RulesRouter
+    assert isinstance(pipe.nlu._primary, RulesRouter)
+
+
+def test_build_uses_plain_rules_router_when_llm_disabled(tmp_path, monkeypatch):
+    """When cfg.llm.enabled is false, NLU is RulesRouter alone (no wrapping)."""
+    from voice_assistant.nlu.rules import RulesRouter
+    from voice_assistant.nlu.llm_fallback import LLMFallbackRouter
+
+    monkeypatch.setattr("voice_assistant.main.FasterWhisperEngine", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.AudioCapture", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.PushToTalk", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.VADSegmenter", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.register_all", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
+
+    (tmp_path / "commands.yaml").write_text(
+        '- intent: noop\n  examples: ["noop"]\n  slots: {}\n',
+        encoding="utf-8")
+    (tmp_path / "default.yaml").write_text(
+        "tts:\n  enabled: false\n"
+        "llm:\n  enabled: false\n",
+        encoding="utf-8")
+
+    from voice_assistant.main import _build
+    pipe, qs, capture, ptt, vad, feedback = _build(str(tmp_path / "default.yaml"))
+    assert isinstance(pipe.nlu, RulesRouter)
+    assert not isinstance(pipe.nlu, LLMFallbackRouter)
