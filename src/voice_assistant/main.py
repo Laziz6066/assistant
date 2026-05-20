@@ -8,6 +8,7 @@ from loguru import logger
 from voice_assistant.config import load_config, AppConfig
 from voice_assistant.core.queues import PipelineQueues, STOP
 from voice_assistant.core.types import AudioSegment
+from voice_assistant.utils import paths
 from voice_assistant.utils.logging import setup_logging
 from voice_assistant.utils.platform import get_platform_ops
 from voice_assistant.audio.capture import AudioCapture
@@ -244,7 +245,7 @@ def _worker(pipe: Pipeline, qs: PipelineQueues, vad: VADSegmenter,
 
 
 def main() -> int:
-    config_path = "config/default.yaml"
+    config_path = str(paths.get_user_config_path())
     pipe, qs, capture, ptt, vad, feedback, tray = _build(config_path)
     stop_evt = threading.Event()
     try:

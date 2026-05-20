@@ -880,3 +880,60 @@ def test_build_skips_mode_store_when_dictation_disabled(tmp_path, monkeypatch):
         str(tmp_path / "default.yaml"))
     assert pipe.mode_store is None
     assert pipe.dictation_processor is None
+
+
+def test_main_uses_paths_for_default_config(monkeypatch):
+    """main() should call paths.get_user_config_path() rather than passing
+    'config/default.yaml' to _build."""
+    from voice_assistant import main as main_mod
+
+    captured = {}
+
+    def fake_build(config_path):
+        captured["config_path"] = config_path
+        raise RuntimeError("stop here — we only care about the arg")
+
+    monkeypatch.setattr(main_mod, "_build", fake_build)
+
+    # Run main(); the RuntimeError unwinds out of fake_build
+    try:
+        main_mod.main()
+    except RuntimeError:
+        pass
+
+    expected = main_mod.paths.get_user_config_path()
+    assert captured.get("config_path") == str(expected)
+
+
+def test_build_uses_commands_yaml_in_user_config_dir(tmp_path, monkeypatch):
+    """_build derives commands.yaml from the same directory as the config
+    path it was given, NOT a hardcoded literal."""
+    from voice_assistant import main as main_mod
+
+    monkeypatch.setattr(main_mod, "FasterWhisperEngine", MagicMock())
+    monkeypatch.setattr(main_mod, "AudioCapture", MagicMock())
+    monkeypatch.setattr(main_mod, "PushToTalk", MagicMock())
+    monkeypatch.setattr(main_mod, "VADSegmenter", MagicMock())
+    monkeypatch.setattr(main_mod, "register_all", MagicMock())
+    monkeypatch.setattr(main_mod, "setup_logging", MagicMock())
+    monkeypatch.setattr(main_mod, "SystemTray", MagicMock())
+
+    custom_dir = tmp_path / "weird-loc"
+    custom_dir.mkdir()
+    (custom_dir / "default.yaml").write_text(
+        "tts:\n  enabled: false\n"
+        "llm:\n  enabled: false\n"
+        "wake:\n  enabled: false\n"
+        "tray:\n  enabled: false\n"
+        "dialog:\n  enabled: false\n"
+        "dictation:\n  enabled: false\n",
+        encoding="utf-8")
+    (custom_dir / "commands.yaml").write_text(
+        '- intent: noop\n  examples: ["noop"]\n  slots: {}\n',
+        encoding="utf-8")
+
+    pipe, qs, capture, ptt, vad, feedback, tray = main_mod._build(
+        str(custom_dir / "default.yaml"))
+    # If _build read commands.yaml from the SAME directory as default.yaml,
+    # the RulesRouter loaded the 'noop' intent — no exception.
+    assert pipe is not None
