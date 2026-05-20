@@ -19,9 +19,12 @@ nlu:
 log_level: INFO
 store_transcripts: false
 app_aliases:
+  блокнот: notepad
+  калькулятор: calc
+  проводник: explorer
+  браузер: chrome
   телеграм: telegram
   телега: telegram
-  браузер: firefox
   код: code
 bookmarks:
   ютуб: https://youtube.com
