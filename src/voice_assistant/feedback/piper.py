@@ -4,6 +4,10 @@ import threading
 from pathlib import Path
 from loguru import logger
 
+import numpy as np
+import sounddevice as sd
+from piper import PiperVoice, SynthesisConfig
+
 from voice_assistant.feedback.base import FeedbackSink
 from voice_assistant.feedback.voice_models import (
     VoiceModelStore, VoiceDownloadError,
@@ -43,6 +47,8 @@ class PiperFeedback(FeedbackSink):
         self._available = False
         self._unavailable_warned = False
         self._voice_paths: tuple[Path, Path] | None = None
+        self._voice = None
+        self._sample_rate = 0
 
     def start(self) -> None:
         try:
@@ -121,13 +127,28 @@ class PiperFeedback(FeedbackSink):
             except Exception:
                 logger.exception(f"TTS playback failed for {msg!r}")
 
-    # --- Seams overridable by tests; real implementation lives in Task 6 ---
+    # --- Real Piper + sounddevice implementations (Task 7) ---
 
     def _load_engine(self, onnx_path: Path, json_path: Path) -> None:
-        """Load the Piper voice model. Default: no-op (overridden in Task 6)."""
-        pass
+        self._voice = PiperVoice.load(str(onnx_path), str(json_path))
+        self._sample_rate = int(self._voice.config.sample_rate)
 
     def _synthesize_and_play(self, message: str) -> None:
-        """Synthesize `message` and play it. Default raises NotImplementedError
-        — Task 6 supplies the real implementation, tests subclass to stub."""
-        raise NotImplementedError("subclass or Task 6 must implement")
+        syn_config = SynthesisConfig(length_scale=self._length_scale)
+        chunks: list[np.ndarray] = []
+        for audio_chunk in self._voice.synthesize(message, syn_config=syn_config):
+            raw = audio_chunk.audio_int16_bytes
+            if raw:
+                chunks.append(np.frombuffer(raw, dtype=np.int16))
+        if not chunks:
+            return
+        with sd.OutputStream(samplerate=self._sample_rate,
+                              channels=1, dtype="int16") as stream:
+            with self._lock:
+                self._current_stream = stream
+            try:
+                for chunk in chunks:
+                    stream.write(chunk)
+            finally:
+                with self._lock:
+                    self._current_stream = None

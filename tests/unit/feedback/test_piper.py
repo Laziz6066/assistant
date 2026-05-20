@@ -1,6 +1,7 @@
 import threading
 import time
 from unittest.mock import MagicMock, patch
+import numpy as np
 import pytest
 from pathlib import Path
 
@@ -16,6 +17,10 @@ class _RecordingPiper(PiperFeedback):
         self.played = []
         self._fail_on = fail_on
         self._hang_ms = hang_ms
+
+    def _load_engine(self, onnx_path: Path, json_path: Path) -> None:
+        # Stub: skip real Piper load so tests don't need real model files
+        self._sample_rate = 22050
 
     def _synthesize_and_play(self, message: str) -> None:
         if self._fail_on is not None and message == self._fail_on:
@@ -151,3 +156,76 @@ def test_queue_overflow_drops_with_warning(tmp_path, caplog):
         fb.cancel()  # drain
     finally:
         fb.stop()
+
+
+def test_load_engine_calls_piper_load(tmp_path):
+    store = _make_store_mock(tmp_path)
+    with patch("voice_assistant.feedback.piper.PiperVoice") as MockVoice:
+        mock_voice = MagicMock()
+        mock_voice.config.sample_rate = 22050
+        MockVoice.load.return_value = mock_voice
+        fb = PiperFeedback(voice="ru_RU-irina-medium", store=store,
+                            length_scale=1.2)
+        fb.start()
+        try:
+            MockVoice.load.assert_called_once()
+            assert fb._available is True
+            assert fb._sample_rate == 22050
+        finally:
+            fb.stop()
+
+
+def test_synthesize_and_play_uses_voice_and_stream(tmp_path):
+    store = _make_store_mock(tmp_path)
+    with patch("voice_assistant.feedback.piper.PiperVoice") as MockVoice, \
+         patch("voice_assistant.feedback.piper.SynthesisConfig") as MockSynConfig, \
+         patch("voice_assistant.feedback.piper.sd.OutputStream") as MockStream:
+        # voice.synthesize yields AudioChunk-like objects with audio_int16_bytes
+        chunk1_bytes = (np.zeros(1000, dtype=np.int16)).tobytes()
+        chunk2_bytes = (np.ones(500, dtype=np.int16) * 100).tobytes()
+        audio_chunk1 = MagicMock()
+        audio_chunk1.audio_int16_bytes = chunk1_bytes
+        audio_chunk2 = MagicMock()
+        audio_chunk2.audio_int16_bytes = chunk2_bytes
+        mock_voice = MagicMock()
+        mock_voice.config.sample_rate = 22050
+        mock_voice.synthesize.return_value = iter([audio_chunk1, audio_chunk2])
+        MockVoice.load.return_value = mock_voice
+
+        stream_ctx = MagicMock()
+        stream_ctx.write = MagicMock()
+        MockStream.return_value.__enter__ = MagicMock(return_value=stream_ctx)
+        MockStream.return_value.__exit__ = MagicMock(return_value=False)
+
+        fb = PiperFeedback(voice="ru_RU-irina-medium", store=store,
+                            length_scale=1.0)
+        fb.start()
+        try:
+            fb.emit("привет")
+            # wait for worker to process
+            deadline = time.time() + 1.0
+            while time.time() < deadline and stream_ctx.write.call_count < 2:
+                time.sleep(0.02)
+            mock_voice.synthesize.assert_called_once()
+            args, kwargs = mock_voice.synthesize.call_args
+            assert args[0] == "привет"
+            # SynthesisConfig was constructed with length_scale=1.0
+            MockSynConfig.assert_called_once_with(length_scale=1.0)
+            # The syn_config kwarg was passed to synthesize
+            assert "syn_config" in kwargs
+            assert stream_ctx.write.call_count == 2
+        finally:
+            fb.stop()
+
+
+def test_engine_load_failure_disables_tts(tmp_path):
+    store = _make_store_mock(tmp_path)
+    with patch("voice_assistant.feedback.piper.PiperVoice") as MockVoice:
+        MockVoice.load.side_effect = RuntimeError("corrupt model")
+        fb = PiperFeedback(voice="ru_RU-irina-medium", store=store,
+                            length_scale=1.0)
+        fb.start()
+        try:
+            assert fb._available is False
+        finally:
+            fb.stop()
