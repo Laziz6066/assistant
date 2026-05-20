@@ -141,18 +141,25 @@ def test_stop_joins_thread(tmp_path):
     assert not fb._thread.is_alive()
 
 
-def test_queue_overflow_drops_with_warning(tmp_path, caplog):
+def test_queue_overflow_drops_with_warning(tmp_path):
     store = _make_store_mock(tmp_path)
-    # Big hang on each playback so the queue fills up
     fb = _RecordingPiper(voice="x_X-y-z", store=store,
                           length_scale=1.0, hang_ms=1000)
     fb.start()
     try:
-        # fill queue (maxsize=8) + a few overflow attempts
-        for i in range(20):
-            fb.emit(f"msg{i}")
-        # we expect at least one drop warning; can't assert exact count
-        # without depending on timing
+        warnings = []
+        # Hook loguru via add() with a custom sink — capture WARNING+ messages
+        from loguru import logger as _logger
+        sink_id = _logger.add(lambda msg: warnings.append(str(msg)), level="WARNING")
+        try:
+            # fill queue (maxsize=8) + overflow attempts
+            for i in range(20):
+                fb.emit(f"msg{i}")
+        finally:
+            _logger.remove(sink_id)
+        # At least one drop warning should have been logged
+        assert any("queue full" in w.lower() or "dropping" in w.lower()
+                   for w in warnings), f"expected drop warning, got: {warnings!r}"
         fb.cancel()  # drain
     finally:
         fb.stop()
