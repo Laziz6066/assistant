@@ -16,6 +16,11 @@ hotkey:
   push_to_talk: ctrl_r
 nlu:
   fuzzy_threshold: 85
+tts:
+  enabled: true
+  voice: ru_RU-irina-medium
+  voices_dir: ~/.voice-assistant/voices
+  length_scale: 1.0
 log_level: INFO
 store_transcripts: false
 app_aliases:

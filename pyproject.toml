@@ -19,6 +19,8 @@ dependencies = [
   "pyyaml",
   "loguru",
   "plyer",
+  "piper-tts>=1.2",
+  "requests>=2.28",
 ]
 
 [project.optional-dependencies]
