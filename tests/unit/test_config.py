@@ -157,3 +157,24 @@ def test_app_config_has_dialog_section_default_enabled():
     cfg = AppConfig()
     assert cfg.dialog.enabled is True
     assert cfg.dialog.context_ttl_s == 60.0
+
+
+from voice_assistant.config import DictationConfig
+
+
+def test_dictation_config_default_values():
+    cfg = DictationConfig()
+    assert cfg.enabled is True
+    assert cfg.type_delay_s == 0.01
+
+
+def test_dictation_config_accepts_overrides():
+    cfg = DictationConfig(enabled=False, type_delay_s=0.05)
+    assert cfg.enabled is False
+    assert cfg.type_delay_s == 0.05
+
+
+def test_app_config_has_dictation_section_default_enabled():
+    cfg = AppConfig()
+    assert cfg.dictation.enabled is True
+    assert cfg.dictation.type_delay_s == 0.01

@@ -91,6 +91,11 @@ class DialogConfig(BaseModel):
     context_size: int = 5
 
 
+class DictationConfig(BaseModel):
+    enabled: bool = True
+    type_delay_s: float = 0.01
+
+
 class AppConfig(BaseModel):
     audio: AudioConfig = Field(default_factory=AudioConfig)
     asr: ASRConfig = Field(default_factory=ASRConfig)
@@ -102,6 +107,7 @@ class AppConfig(BaseModel):
     wake: WakeConfig = Field(default_factory=WakeConfig)
     tray: TrayConfig = Field(default_factory=TrayConfig)
     dialog: DialogConfig = Field(default_factory=DialogConfig)
+    dictation: DictationConfig = Field(default_factory=DictationConfig)
     log_level: str = "INFO"
     store_transcripts: bool = False
     app_aliases: dict[str, str] = Field(default_factory=dict)
