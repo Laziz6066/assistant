@@ -183,3 +183,38 @@ PTT продолжает работать.
 - [ ] Длинная фраза 50+ слов печатается полностью
 - [ ] `dictation.enabled: false` → "режим диктовки" не активирует mode (TTS говорит "Режим диктовки выключен")
 - [ ] Multi-turn context НЕ обновляется во время диктовки (после "стоп" "закрой его" даёт "Не понял")
+
+## Build (для разработчика)
+
+Производит portable .zip с .exe и user-editable configs:
+
+```
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+installer\build.bat
+```
+
+Результат: `dist/voice-assistant-0.1.0.zip` (~265 MB).
+
+Сборка занимает 3-5 минут. Если падает на missing hidden import — добавь его в `hiddenimports` в `installer/voice_assistant.spec` и пересобери.
+
+## Install (для конечного пользователя)
+
+1. Скачай `voice-assistant-0.1.0.zip` с релизной страницы
+2. Распакуй в удобную папку (например, `C:\Apps\voice-assistant\`)
+3. Запусти `voice-assistant.exe`
+4. Опционально отредактируй `config/default.yaml` чтобы включить TTS / wake / LLM / dictation
+
+User data (voice models, wake models) хранится в `%USERPROFILE%\.voice-assistant\`. Удаление папки приложения её не очищает — удали вручную если нужен полный clean.
+
+## Installer verification checklist
+
+- [ ] `installer\build.bat` завершается без ошибок (~3-5 минут)
+- [ ] `dist/voice-assistant-0.1.0.zip` создан, размер ~265 MB
+- [ ] Распаковка в чистую папку (без виртуального окружения рядом)
+- [ ] Двойной клик по `voice-assistant.exe` — окно консоли + иконка в трее
+- [ ] PTT: Right Ctrl → "открой блокнот" → notepad запускается
+- [ ] `voice_assistant.log` создаётся рядом с .exe
+- [ ] Включить `tts.enabled: true` в `config/default.yaml` → перезапустить → голос качается в `%USERPROFILE%\.voice-assistant\voices\`
+- [ ] Tray → Quit → процесс корректно завершается, лог-файл не залочен
+- [ ] Удалить папку → нет следов в Program Files / реестре
+- [ ] (Опционально) Защитник Windows не флагует .exe как malware
