@@ -108,16 +108,25 @@ def _build(config_path: str) -> tuple[Pipeline, PipelineQueues,
     vad = VADSegmenter(cfg.audio.sample_rate, cfg.vad.threshold,
                        cfg.vad.min_speech_ms, cfg.vad.max_speech_ms)
 
+    import threading as _threading
+    state_lock = _threading.Lock()
+    holders: set[str] = set()
     mark = 0
 
-    def on_state_change(held: bool) -> None:
+    def on_state_change(held: bool, source: str = "ptt") -> None:
         nonlocal mark
-        if held:
-            feedback.cancel()
-            mark = len(capture.ring.snapshot())
-        else:
-            raw = capture.ring.snapshot()[mark:]
-            qs.speech_q.put(raw)
+        with state_lock:
+            if held:
+                first = not holders
+                holders.add(source)
+                if first:
+                    feedback.cancel()
+                    mark = len(capture.ring.snapshot())
+            else:
+                holders.discard(source)
+                if not holders:
+                    raw = capture.ring.snapshot()[mark:]
+                    qs.speech_q.put(raw)
 
     ptt: Activator = PushToTalk(cfg.hotkey.push_to_talk, on_state_change)
     activators: list[Activator] = [ptt]

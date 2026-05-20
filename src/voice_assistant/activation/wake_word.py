@@ -153,6 +153,8 @@ class WakeWordActivator(Activator):
             wakeword_models=[str(onnx_path)],
             inference_framework="onnx",
         )
+        # Probe: consume one predict() call to learn the model's output key.
+        # Tests that mock Model.predict must script one extra entry for this.
         # Derive the model key from the first key in a probe prediction so
         # _predict_score doesn't depend on the alias-to-key mapping.
         probe_chunk = np.zeros(1280, dtype=np.int16)
