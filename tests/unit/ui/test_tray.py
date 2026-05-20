@@ -173,3 +173,11 @@ def test_quit_callback_raising_still_calls_icon_stop():
         quit_action = captured["Quit"]
         quit_action(inst, MagicMock())
         inst.stop.assert_called_once()
+
+
+def test_default_icon_path_is_absolute_and_points_at_assets():
+    """The default icon path must be absolute (not CWD-relative) so the
+    bundled PNG is found regardless of the user's working directory."""
+    from voice_assistant.ui.tray import _DEFAULT_ICON_PATH
+    assert _DEFAULT_ICON_PATH.is_absolute()
+    assert _DEFAULT_ICON_PATH.parts[-2:] == ("assets", "tray-icon.png")

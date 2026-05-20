@@ -8,7 +8,12 @@ import pystray
 from PIL import Image, ImageDraw
 
 
-_DEFAULT_ICON_PATH = Path("assets/tray-icon.png")
+# Resolve the bundled icon relative to the package, not the CWD, so the
+# installed assistant finds it regardless of where it's launched from.
+# Layout: <repo>/src/voice_assistant/ui/tray.py
+#         <repo>/assets/tray-icon.png
+_DEFAULT_ICON_PATH = (Path(__file__).resolve().parent.parent.parent.parent
+                       / "assets" / "tray-icon.png")
 _STOP_JOIN_TIMEOUT_S = 2.0
 
 
