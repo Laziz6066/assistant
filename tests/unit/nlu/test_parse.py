@@ -95,3 +95,24 @@ def test_confidence_at_threshold_accepted():
     content = '{"intent": "minimize_all", "slots": {}, "confidence": 0.5}'
     intent = parse_and_validate(content, _CATALOG, min_confidence=0.5)
     assert intent.name == "minimize_all"
+
+
+def test_dict_slot_value_returns_unknown():
+    """LLM hallucinated nested dict as slot value — reject."""
+    content = '{"intent": "open_app", "slots": {"app": {"x": "y"}}, "confidence": 0.9}'
+    intent = parse_and_validate(content, _CATALOG, min_confidence=0.5)
+    assert intent.name == "unknown"
+
+
+def test_null_slot_value_returns_unknown():
+    """LLM emitted null/None for a required slot — reject."""
+    content = '{"intent": "open_app", "slots": {"app": null}, "confidence": 0.9}'
+    intent = parse_and_validate(content, _CATALOG, min_confidence=0.5)
+    assert intent.name == "unknown"
+
+
+def test_list_slot_value_returns_unknown():
+    """LLM emitted a list as slot value — reject."""
+    content = '{"intent": "open_app", "slots": {"app": ["a","b"]}, "confidence": 0.9}'
+    intent = parse_and_validate(content, _CATALOG, min_confidence=0.5)
+    assert intent.name == "unknown"

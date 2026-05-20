@@ -57,6 +57,10 @@ def parse_and_validate(content: str, catalog: dict[str, dict],
                           f"for intent {intent_name!r}")
             return Intent.unknown()
         raw_val = slots_raw[slot_name]
+        if not isinstance(raw_val, (str, int, float, bool)):
+            logger.debug(f"LLM slot {slot_name!r} has non-primitive value "
+                          f"of type {type(raw_val).__name__}: {raw_val!r}")
+            return Intent.unknown()
         if slot_type == "int":
             try:
                 coerced[slot_name] = int(raw_val)
