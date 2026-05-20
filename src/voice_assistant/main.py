@@ -34,13 +34,17 @@ from voice_assistant.feedback.composite import CompositeFeedback
 from voice_assistant.feedback.piper import PiperFeedback
 from voice_assistant.feedback.voice_models import VoiceModelStore
 from voice_assistant.ui.tray import SystemTray
+from voice_assistant.dictation.mode_store import ModeStore
+from voice_assistant.dictation.processor import DictationProcessor
 
 
 class Pipeline:
     def __init__(self, config: AppConfig, asr: ASREngine, nlu: NLURouter,
                  registry: Registry, ctx: ExecutorContext,
                  feedback: FeedbackSink,
-                 context_store: ContextStore | None = None):
+                 context_store: ContextStore | None = None,
+                 mode_store: ModeStore | None = None,
+                 dictation_processor: DictationProcessor | None = None):
         self.config = config
         self.asr = asr
         self.nlu = nlu
@@ -48,6 +52,8 @@ class Pipeline:
         self.ctx = ctx
         self.feedback = feedback
         self.context_store = context_store
+        self.mode_store = mode_store
+        self.dictation_processor = dictation_processor
 
     def process_segment(self, segment: AudioSegment) -> None:
         transcript = self.asr.transcribe(segment)
@@ -61,7 +67,22 @@ class Pipeline:
                 or not transcript.text.strip():
             self.feedback.emit("Не понял, повтори", success=False)
             return
+
         intent = self.nlu.route(transcript)
+
+        # Dictation branch
+        if self.mode_store is not None and self.mode_store.is_dictation():
+            if intent.name == "stop_dictation":
+                result = self.registry.dispatch(intent, self.ctx)
+                self.feedback.emit(result.tts_response,
+                                    success=result.success)
+                return
+            if self.dictation_processor is not None:
+                self.dictation_processor.type_transcript(transcript.text)
+            logger.info(f"dictated: {len(transcript.text)} chars")
+            return
+
+        # Command branch
         if intent.name == "unknown":
             self.feedback.emit("Не понял, повтори", success=False)
             return
@@ -79,7 +100,12 @@ def _build(config_path: str) -> tuple[Pipeline, PipelineQueues,
     setup_logging(level=cfg.log_level)
     register_all()
     ops = get_platform_ops()
-    ctx = ExecutorContext(config=cfg, platform_ops=ops)
+    mode_store: ModeStore | None = None
+    dictation_processor: DictationProcessor | None = None
+    if cfg.dictation.enabled:
+        mode_store = ModeStore()
+        dictation_processor = DictationProcessor(platform_ops=ops)
+    ctx = ExecutorContext(config=cfg, platform_ops=ops, mode_store=mode_store)
     asr = FasterWhisperEngine(
         model=cfg.asr.model, device=cfg.asr.device,
         compute_type=cfg.asr.compute_type, language=cfg.asr.language)
@@ -115,7 +141,9 @@ def _build(config_path: str) -> tuple[Pipeline, PipelineQueues,
         )
         nlu = ContextualRouter(inner=nlu, store=context_store)
     pipe = Pipeline(cfg, asr, nlu, global_registry(), ctx, feedback,
-                     context_store=context_store)
+                     context_store=context_store,
+                     mode_store=mode_store,
+                     dictation_processor=dictation_processor)
 
     qs = PipelineQueues()
     capture = AudioCapture(cfg.audio.sample_rate, cfg.audio.ring_seconds,

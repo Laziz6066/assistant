@@ -717,3 +717,166 @@ def test_build_skips_contextual_router_when_dialog_disabled(tmp_path,
         str(tmp_path / "default.yaml"))
     assert not isinstance(pipe.nlu, ContextualRouter)
     assert pipe.context_store is None
+
+
+def test_pipeline_constructor_accepts_mode_store_and_processor():
+    from voice_assistant.main import Pipeline
+    from voice_assistant.dictation.mode_store import ModeStore
+    from voice_assistant.dictation.processor import DictationProcessor
+    store = ModeStore()
+    proc = DictationProcessor(platform_ops=MagicMock())
+    pipe = Pipeline(
+        config=AppConfig(), asr=MagicMock(), nlu=MagicMock(),
+        registry=MagicMock(), ctx=MagicMock(), feedback=MagicMock(),
+        mode_store=store, dictation_processor=proc,
+    )
+    assert pipe.mode_store is store
+    assert pipe.dictation_processor is proc
+
+
+def test_pipeline_in_dictation_mode_routes_to_processor():
+    from voice_assistant.main import Pipeline
+    from voice_assistant.core.types import (
+        AudioSegment, Transcript, Intent, ExecutionResult,
+    )
+    from voice_assistant.dictation.mode_store import ModeStore
+    import numpy as np
+
+    cfg = AppConfig()
+    asr = MagicMock()
+    asr.transcribe.return_value = Transcript("привет мама точка", "ru", 0.95, 500)
+    nlu = MagicMock()
+    nlu.route.return_value = Intent("unknown", {}, 0.0)
+    registry = MagicMock()
+    feedback = MagicMock()
+    store = ModeStore()
+    store.start_dictation()
+    proc = MagicMock()
+
+    pipe = Pipeline(config=cfg, asr=asr, nlu=nlu, registry=registry,
+                     ctx=MagicMock(), feedback=feedback,
+                     mode_store=store, dictation_processor=proc)
+    pipe.process_segment(AudioSegment(np.zeros(8000, dtype=np.int16), 16000))
+
+    proc.type_transcript.assert_called_once_with("привет мама точка")
+    registry.dispatch.assert_not_called()
+
+
+def test_pipeline_in_dictation_mode_with_stop_intent_dispatches():
+    from voice_assistant.main import Pipeline
+    from voice_assistant.core.types import (
+        AudioSegment, Transcript, Intent, ExecutionResult,
+    )
+    from voice_assistant.dictation.mode_store import ModeStore
+    import numpy as np
+
+    cfg = AppConfig()
+    asr = MagicMock()
+    asr.transcribe.return_value = Transcript("стоп диктовка", "ru", 0.95, 500)
+    nlu = MagicMock()
+    nlu.route.return_value = Intent("stop_dictation", {}, 1.0)
+    registry = MagicMock()
+    registry.dispatch.return_value = ExecutionResult.ok("ok",
+                                                         tts_response="Готово")
+    feedback = MagicMock()
+    store = ModeStore()
+    store.start_dictation()
+    proc = MagicMock()
+
+    pipe = Pipeline(config=cfg, asr=asr, nlu=nlu, registry=registry,
+                     ctx=MagicMock(), feedback=feedback,
+                     mode_store=store, dictation_processor=proc)
+    pipe.process_segment(AudioSegment(np.zeros(8000, dtype=np.int16), 16000))
+
+    registry.dispatch.assert_called_once()
+    proc.type_transcript.assert_not_called()
+    feedback.emit.assert_called_once_with("Готово", success=True)
+
+
+def test_pipeline_in_command_mode_unchanged():
+    from voice_assistant.main import Pipeline
+    from voice_assistant.core.types import (
+        AudioSegment, Transcript, Intent, ExecutionResult,
+    )
+    from voice_assistant.dictation.mode_store import ModeStore
+    import numpy as np
+
+    cfg = AppConfig()
+    asr = MagicMock()
+    asr.transcribe.return_value = Transcript("открой блокнот", "ru", 0.95, 500)
+    nlu = MagicMock()
+    nlu.route.return_value = Intent("open_app", {"app": "блокнот"}, 1.0)
+    registry = MagicMock()
+    registry.dispatch.return_value = ExecutionResult.ok("ok",
+                                                         tts_response="Открыл")
+    feedback = MagicMock()
+    store = ModeStore()  # default: command
+    proc = MagicMock()
+
+    pipe = Pipeline(config=cfg, asr=asr, nlu=nlu, registry=registry,
+                     ctx=MagicMock(), feedback=feedback,
+                     mode_store=store, dictation_processor=proc)
+    pipe.process_segment(AudioSegment(np.zeros(8000, dtype=np.int16), 16000))
+
+    registry.dispatch.assert_called_once()
+    proc.type_transcript.assert_not_called()
+
+
+def test_build_constructs_mode_store_and_processor_when_dictation_enabled(
+        tmp_path, monkeypatch):
+    from voice_assistant.dictation.mode_store import ModeStore
+    from voice_assistant.dictation.processor import DictationProcessor
+
+    monkeypatch.setattr("voice_assistant.main.FasterWhisperEngine", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.AudioCapture", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.PushToTalk", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.VADSegmenter", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.register_all", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.SystemTray", MagicMock())
+
+    (tmp_path / "commands.yaml").write_text(
+        '- intent: noop\n  examples: ["noop"]\n  slots: {}\n',
+        encoding="utf-8")
+    (tmp_path / "default.yaml").write_text(
+        "tts:\n  enabled: false\n"
+        "llm:\n  enabled: false\n"
+        "wake:\n  enabled: false\n"
+        "tray:\n  enabled: false\n"
+        "dialog:\n  enabled: false\n"
+        "dictation:\n  enabled: true\n",
+        encoding="utf-8")
+
+    from voice_assistant.main import _build
+    pipe, qs, capture, ptt, vad, feedback, tray = _build(
+        str(tmp_path / "default.yaml"))
+    assert isinstance(pipe.mode_store, ModeStore)
+    assert isinstance(pipe.dictation_processor, DictationProcessor)
+
+
+def test_build_skips_mode_store_when_dictation_disabled(tmp_path, monkeypatch):
+    monkeypatch.setattr("voice_assistant.main.FasterWhisperEngine", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.AudioCapture", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.PushToTalk", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.VADSegmenter", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.register_all", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.SystemTray", MagicMock())
+
+    (tmp_path / "commands.yaml").write_text(
+        '- intent: noop\n  examples: ["noop"]\n  slots: {}\n',
+        encoding="utf-8")
+    (tmp_path / "default.yaml").write_text(
+        "tts:\n  enabled: false\n"
+        "llm:\n  enabled: false\n"
+        "wake:\n  enabled: false\n"
+        "tray:\n  enabled: false\n"
+        "dialog:\n  enabled: false\n"
+        "dictation:\n  enabled: false\n",
+        encoding="utf-8")
+
+    from voice_assistant.main import _build
+    pipe, qs, capture, ptt, vad, feedback, tray = _build(
+        str(tmp_path / "default.yaml"))
+    assert pipe.mode_store is None
+    assert pipe.dictation_processor is None
