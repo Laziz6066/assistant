@@ -23,6 +23,7 @@ dependencies = [
   "requests>=2.28",
   "ollama>=0.3",
   "openwakeword>=0.6",
+  "pystray>=0.19",
 ]
 
 [project.optional-dependencies]

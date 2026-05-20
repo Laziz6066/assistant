@@ -49,3 +49,5 @@ wake:
   silence_ms: 800
   max_speech_ms: 10000
   models_dir: ~/.voice-assistant/wake-models
+tray:
+  enabled: true
