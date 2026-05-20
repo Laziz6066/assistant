@@ -7,13 +7,12 @@ from loguru import logger
 import pystray
 from PIL import Image, ImageDraw
 
+from voice_assistant.utils.paths import get_resource_path
 
-# Resolve the bundled icon relative to the package, not the CWD, so the
-# installed assistant finds it regardless of where it's launched from.
-# Layout: <repo>/src/voice_assistant/ui/tray.py
-#         <repo>/assets/tray-icon.png
-_DEFAULT_ICON_PATH = (Path(__file__).resolve().parent.parent.parent.parent
-                       / "assets" / "tray-icon.png")
+
+# Resolved at import time. Works in both dev (repo-root-relative) and when
+# frozen by PyInstaller (sys._MEIPASS-relative).
+_DEFAULT_ICON_PATH = get_resource_path("assets/tray-icon.png")
 _STOP_JOIN_TIMEOUT_S = 2.0
 
 
