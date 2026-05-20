@@ -193,3 +193,71 @@ def test_failed_dispatch_propagates_success_false():
     registry.dispatch.assert_called_once()
     feedback.emit.assert_called_once()
     assert feedback.emit.call_args.kwargs.get("success") is False
+
+
+def test_build_uses_composite_when_tts_enabled(tmp_path, monkeypatch):
+    """When cfg.tts.enabled, _build must wire a CompositeFeedback that
+    contains both CLIFeedback and PiperFeedback. When disabled, just CLI."""
+    from voice_assistant.feedback.composite import CompositeFeedback
+    from voice_assistant.feedback.cli import CLIFeedback
+    from voice_assistant.feedback.piper import PiperFeedback
+
+    # Skip heavy parts of _build (ASR model load, etc.) by mocking
+    monkeypatch.setattr("voice_assistant.main.FasterWhisperEngine",
+                        MagicMock())
+    monkeypatch.setattr("voice_assistant.main.AudioCapture", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.PushToTalk", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.VADSegmenter", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.register_all", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.VoiceModelStore", MagicMock())
+
+    # Minimal commands.yaml and default.yaml
+    (tmp_path / "commands.yaml").write_text(
+        '- intent: noop\n  examples: ["noop"]\n', encoding="utf-8")
+    (tmp_path / "default.yaml").write_text(
+        f"tts:\n  enabled: true\n  voice: ru_RU-irina-medium\n"
+        f"  voices_dir: {tmp_path / 'voices'}\n",
+        encoding="utf-8")
+
+    from voice_assistant.main import _build
+    pipe, qs, capture, ptt, vad, feedback = _build(str(tmp_path / "default.yaml"))
+
+    assert isinstance(feedback, CompositeFeedback)
+    types = [type(s).__name__ for s in feedback._sinks]
+    assert "CLIFeedback" in types
+    assert "PiperFeedback" in types
+
+
+def test_ptt_state_change_held_calls_feedback_cancel(monkeypatch, tmp_path):
+    """Pressing PTT must call feedback.cancel() so any in-flight TTS aborts."""
+    from voice_assistant.main import _build
+
+    captured_callback = {}
+
+    def _capture_ptt(key, cb):
+        captured_callback["cb"] = cb
+        return MagicMock()
+
+    monkeypatch.setattr("voice_assistant.main.PushToTalk", _capture_ptt)
+    monkeypatch.setattr("voice_assistant.main.FasterWhisperEngine", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.AudioCapture", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.VADSegmenter", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.register_all", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
+
+    (tmp_path / "commands.yaml").write_text(
+        '- intent: noop\n  examples: ["noop"]\n', encoding="utf-8")
+    (tmp_path / "default.yaml").write_text(
+        "tts:\n  enabled: false\n", encoding="utf-8")
+
+    pipe, qs, capture, ptt, vad, feedback = _build(str(tmp_path / "default.yaml"))
+
+    # Swap in a spyable feedback so we can detect cancel()
+    feedback.cancel = MagicMock()
+    pipe.feedback = feedback  # not strictly needed for this test
+
+    # Force on_state_change to be the captured callback bound to the closure
+    on_state_change = captured_callback["cb"]
+    on_state_change(True)
+    feedback.cancel.assert_called_once()

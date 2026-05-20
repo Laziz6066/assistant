@@ -22,6 +22,9 @@ from voice_assistant.executor.context import ExecutorContext
 from voice_assistant.executor.plugins import register_all
 from voice_assistant.feedback.base import FeedbackSink
 from voice_assistant.feedback.cli import CLIFeedback
+from voice_assistant.feedback.composite import CompositeFeedback
+from voice_assistant.feedback.piper import PiperFeedback
+from voice_assistant.feedback.voice_models import VoiceModelStore
 
 
 class Pipeline:
@@ -57,7 +60,8 @@ class Pipeline:
 
 
 def _build(config_path: str) -> tuple[Pipeline, PipelineQueues,
-                                       AudioCapture, PushToTalk, VADSegmenter]:
+                                       AudioCapture, PushToTalk, VADSegmenter,
+                                       FeedbackSink]:
     cfg = load_config(config_path)
     setup_logging(level=cfg.log_level)
     register_all()
@@ -69,7 +73,13 @@ def _build(config_path: str) -> tuple[Pipeline, PipelineQueues,
     nlu = RulesRouter(
         commands_path=str(Path(config_path).parent / "commands.yaml"),
         fuzzy_threshold=cfg.nlu.fuzzy_threshold)
-    feedback = CLIFeedback()
+    if cfg.tts.enabled:
+        store = VoiceModelStore(cfg.tts.voices_dir)
+        piper = PiperFeedback(voice=cfg.tts.voice, store=store,
+                               length_scale=cfg.tts.length_scale)
+        feedback: FeedbackSink = CompositeFeedback([CLIFeedback(), piper])
+    else:
+        feedback = CLIFeedback()
     pipe = Pipeline(cfg, asr, nlu, global_registry(), ctx, feedback)
 
     qs = PipelineQueues()
@@ -83,13 +93,14 @@ def _build(config_path: str) -> tuple[Pipeline, PipelineQueues,
     def on_state_change(held: bool) -> None:
         nonlocal mark
         if held:
+            feedback.cancel()
             mark = len(capture.ring.snapshot())
         else:
             raw = capture.ring.snapshot()[mark:]
             qs.speech_q.put(raw)
 
     ptt = PushToTalk(cfg.hotkey.push_to_talk, on_state_change)
-    return pipe, qs, capture, ptt, vad
+    return pipe, qs, capture, ptt, vad, feedback
 
 
 def _worker(pipe: Pipeline, qs: PipelineQueues, vad: VADSegmenter,
@@ -114,18 +125,23 @@ def _worker(pipe: Pipeline, qs: PipelineQueues, vad: VADSegmenter,
 
 def main() -> int:
     config_path = "config/default.yaml"
-    pipe, qs, capture, ptt, vad = _build(config_path)
+    pipe, qs, capture, ptt, vad, feedback = _build(config_path)
     stop_evt = threading.Event()
     try:
         capture.start()
     except Exception as e:
         logger.error(f"microphone unavailable: {e}")
         return 1
+    feedback.start()
 
     def _shutdown(*_):
         logger.info("shutting down")
         stop_evt.set()
         qs.speech_q.put(STOP)
+        try:
+            feedback.cancel()
+        except Exception:
+            pass
 
     signal.signal(signal.SIGINT, _shutdown)
     ptt.start()
@@ -134,6 +150,7 @@ def main() -> int:
     worker.start()
     logger.info("ready — hold push-to-talk key and speak")
     worker.join()
+    feedback.stop()
     ptt.stop()
     capture.stop()
     return 0
