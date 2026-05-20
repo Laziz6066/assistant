@@ -51,3 +51,7 @@ wake:
   models_dir: ~/.voice-assistant/wake-models
 tray:
   enabled: true
+dialog:
+  enabled: true
+  context_ttl_s: 60.0
+  context_size: 5
