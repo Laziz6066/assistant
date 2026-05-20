@@ -35,3 +35,10 @@ bookmarks:
   ютуб: https://youtube.com
 path_aliases:
   загрузки: "~/Downloads"
+llm:
+  enabled: false
+  model: qwen2.5:3b-instruct
+  host: http://localhost:11434
+  timeout_s: 3.0
+  temperature: 0.1
+  min_confidence: 0.5
