@@ -23,6 +23,7 @@ from voice_assistant.nlu.base import NLURouter
 from voice_assistant.nlu.rules import RulesRouter
 from voice_assistant.nlu.llm_fallback import LLMFallbackRouter
 from voice_assistant.nlu.ollama_client import OllamaClient
+from voice_assistant.nlu.context_store import ContextStore
 from voice_assistant.executor.registry import global_registry, Registry
 from voice_assistant.executor.context import ExecutorContext
 from voice_assistant.executor.plugins import register_all
@@ -37,13 +38,15 @@ from voice_assistant.ui.tray import SystemTray
 class Pipeline:
     def __init__(self, config: AppConfig, asr: ASREngine, nlu: NLURouter,
                  registry: Registry, ctx: ExecutorContext,
-                 feedback: FeedbackSink):
+                 feedback: FeedbackSink,
+                 context_store: ContextStore | None = None):
         self.config = config
         self.asr = asr
         self.nlu = nlu
         self.registry = registry
         self.ctx = ctx
         self.feedback = feedback
+        self.context_store = context_store
 
     def process_segment(self, segment: AudioSegment) -> None:
         transcript = self.asr.transcribe(segment)
@@ -63,6 +66,8 @@ class Pipeline:
             return
         result = self.registry.dispatch(intent, self.ctx)
         logger.info(f"intent={intent.name} success={result.success}")
+        if result.success and self.context_store is not None:
+            self.context_store.add(intent)
         self.feedback.emit(result.tts_response, success=result.success)
 
 

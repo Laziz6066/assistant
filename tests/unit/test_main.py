@@ -563,3 +563,94 @@ def test_build_returns_none_tray_when_systemtray_raises(tmp_path, monkeypatch):
     pipe, qs, capture, ptt, vad, feedback, tray = _build(
         str(tmp_path / "default.yaml"))
     assert tray is None
+
+
+def test_pipeline_constructor_accepts_context_store():
+    """Pipeline.__init__ must accept context_store kwarg (default None)."""
+    from voice_assistant.main import Pipeline
+    from voice_assistant.nlu.context_store import ContextStore
+    store = ContextStore()
+    pipe = Pipeline(
+        config=AppConfig(), asr=MagicMock(), nlu=MagicMock(),
+        registry=MagicMock(), ctx=MagicMock(), feedback=MagicMock(),
+        context_store=store,
+    )
+    assert pipe.context_store is store
+
+
+def test_pipeline_writes_successful_intent_to_context_store():
+    """Successful dispatch → context_store.add(intent) is called."""
+    from voice_assistant.main import Pipeline
+    from voice_assistant.core.types import (
+        AudioSegment, Transcript, Intent, ExecutionResult,
+    )
+    import numpy as np
+
+    cfg = AppConfig()
+    asr = MagicMock()
+    asr.transcribe.return_value = Transcript("открой telegram", "ru", 0.9, 500)
+    nlu = MagicMock()
+    nlu.route.return_value = Intent("open_app", {"app": "telegram"}, 1.0)
+    registry = MagicMock()
+    registry.dispatch.return_value = ExecutionResult(
+        success=True, message="ok", tts_response="Открыл")
+    feedback = MagicMock()
+    store = MagicMock()
+
+    pipe = Pipeline(config=cfg, asr=asr, nlu=nlu, registry=registry,
+                     ctx=MagicMock(), feedback=feedback, context_store=store)
+    pipe.process_segment(AudioSegment(np.zeros(8000, dtype=np.int16), 16000))
+
+    store.add.assert_called_once()
+    added_intent = store.add.call_args.args[0]
+    assert added_intent.name == "open_app"
+    assert added_intent.slots == {"app": "telegram"}
+
+
+def test_pipeline_does_not_write_failed_dispatch_to_store():
+    """When dispatch returns success=False, the store is NOT updated."""
+    from voice_assistant.main import Pipeline
+    from voice_assistant.core.types import (
+        AudioSegment, Transcript, Intent, ExecutionResult,
+    )
+    import numpy as np
+
+    cfg = AppConfig()
+    asr = MagicMock()
+    asr.transcribe.return_value = Transcript("открой xyz", "ru", 0.9, 500)
+    nlu = MagicMock()
+    nlu.route.return_value = Intent("open_app", {"app": "xyz"}, 1.0)
+    registry = MagicMock()
+    registry.dispatch.return_value = ExecutionResult.fail("not found")
+    feedback = MagicMock()
+    store = MagicMock()
+
+    pipe = Pipeline(config=cfg, asr=asr, nlu=nlu, registry=registry,
+                     ctx=MagicMock(), feedback=feedback, context_store=store)
+    pipe.process_segment(AudioSegment(np.zeros(8000, dtype=np.int16), 16000))
+
+    store.add.assert_not_called()
+
+
+def test_pipeline_without_context_store_does_not_raise():
+    """context_store=None is a valid configuration."""
+    from voice_assistant.main import Pipeline
+    from voice_assistant.core.types import (
+        AudioSegment, Transcript, Intent, ExecutionResult,
+    )
+    import numpy as np
+
+    cfg = AppConfig()
+    asr = MagicMock()
+    asr.transcribe.return_value = Transcript("открой telegram", "ru", 0.9, 500)
+    nlu = MagicMock()
+    nlu.route.return_value = Intent("open_app", {"app": "telegram"}, 1.0)
+    registry = MagicMock()
+    registry.dispatch.return_value = ExecutionResult.ok("ok",
+                                                         tts_response="Открыл")
+    feedback = MagicMock()
+
+    pipe = Pipeline(config=cfg, asr=asr, nlu=nlu, registry=registry,
+                     ctx=MagicMock(), feedback=feedback)  # context_store omitted
+    pipe.process_segment(AudioSegment(np.zeros(8000, dtype=np.int16), 16000))
+    # No exception means PASS
