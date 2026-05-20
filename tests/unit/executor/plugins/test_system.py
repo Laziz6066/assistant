@@ -4,6 +4,7 @@ from voice_assistant.executor.context import ExecutorContext
 from voice_assistant.config import AppConfig
 from voice_assistant.core.types import ExecutionResult, Intent
 import voice_assistant.executor.plugins.system as sysmod
+import time
 
 
 def _ctx(ops=None):
@@ -46,3 +47,35 @@ def test_confirm_yes_executes_pending_shutdown():
     res = reg.dispatch(Intent("confirm_yes", {}), ctx)
     ops.shutdown.assert_called_once_with(reboot=False)
     assert res.success
+
+
+def test_confirm_yes_with_no_pending_action_is_noop():
+    reg = Registry()
+    sysmod.register(reg)
+    ops = MagicMock()
+    res = reg.dispatch(Intent("confirm_yes", {}), _ctx(ops))
+    ops.shutdown.assert_not_called()
+    assert res.success
+    assert "нечего" in res.tts_response.lower()
+
+
+def test_confirm_yes_expires_after_timeout(monkeypatch):
+    reg = Registry()
+    sysmod.register(reg)
+    ops = MagicMock()
+    ctx = _ctx(ops)
+
+    # Arm shutdown
+    reg.dispatch(Intent("shutdown", {}), ctx)
+
+    # Advance monotonic clock past the confirm window
+    real_monotonic = time.monotonic
+    start = real_monotonic()
+    monkeypatch.setattr(
+        sysmod.time, "monotonic",
+        lambda: start + sysmod.CONFIRM_TIMEOUT_S + 1.0)
+
+    res = reg.dispatch(Intent("confirm_yes", {}), ctx)
+    ops.shutdown.assert_not_called()
+    assert res.success
+    assert "вышло" in res.tts_response.lower() or "отмена" in res.tts_response.lower()
