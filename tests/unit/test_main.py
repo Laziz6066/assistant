@@ -221,7 +221,7 @@ def test_build_uses_composite_when_tts_enabled(tmp_path, monkeypatch):
         encoding="utf-8")
 
     from voice_assistant.main import _build
-    pipe, qs, capture, ptt, vad, feedback = _build(str(tmp_path / "default.yaml"))
+    pipe, qs, capture, ptt, vad, feedback, tray = _build(str(tmp_path / "default.yaml"))
 
     assert isinstance(feedback, CompositeFeedback)
     types = [type(s).__name__ for s in feedback._sinks]
@@ -253,7 +253,7 @@ def test_build_falls_back_to_cli_when_voices_dir_unwritable(tmp_path, monkeypatc
         encoding="utf-8")
 
     from voice_assistant.main import _build
-    pipe, qs, capture, ptt, vad, feedback = _build(str(tmp_path / "default.yaml"))
+    pipe, qs, capture, ptt, vad, feedback, tray = _build(str(tmp_path / "default.yaml"))
     assert isinstance(feedback, CLIFeedback)
 
 
@@ -279,7 +279,7 @@ def test_ptt_state_change_held_calls_feedback_cancel(monkeypatch, tmp_path):
     (tmp_path / "default.yaml").write_text(
         "tts:\n  enabled: false\n", encoding="utf-8")
 
-    pipe, qs, capture, ptt, vad, feedback = _build(str(tmp_path / "default.yaml"))
+    pipe, qs, capture, ptt, vad, feedback, tray = _build(str(tmp_path / "default.yaml"))
 
     # Swap in a spyable feedback so we can detect cancel()
     feedback.cancel = MagicMock()
@@ -314,7 +314,7 @@ def test_build_wraps_nlu_in_llm_fallback_when_enabled(tmp_path, monkeypatch):
         encoding="utf-8")
 
     from voice_assistant.main import _build
-    pipe, qs, capture, ptt, vad, feedback = _build(str(tmp_path / "default.yaml"))
+    pipe, qs, capture, ptt, vad, feedback, tray = _build(str(tmp_path / "default.yaml"))
     assert isinstance(pipe.nlu, LLMFallbackRouter)
     # And the primary inside is still RulesRouter
     assert isinstance(pipe.nlu._primary, RulesRouter)
@@ -341,7 +341,7 @@ def test_build_uses_plain_rules_router_when_llm_disabled(tmp_path, monkeypatch):
         encoding="utf-8")
 
     from voice_assistant.main import _build
-    pipe, qs, capture, ptt, vad, feedback = _build(str(tmp_path / "default.yaml"))
+    pipe, qs, capture, ptt, vad, feedback, tray = _build(str(tmp_path / "default.yaml"))
     assert isinstance(pipe.nlu, RulesRouter)
     assert not isinstance(pipe.nlu, LLMFallbackRouter)
 
@@ -372,7 +372,7 @@ def test_build_wraps_in_composite_when_wake_enabled(tmp_path, monkeypatch):
         encoding="utf-8")
 
     from voice_assistant.main import _build
-    pipe, qs, capture, ptt, vad, feedback = _build(str(tmp_path / "default.yaml"))
+    pipe, qs, capture, ptt, vad, feedback, tray = _build(str(tmp_path / "default.yaml"))
     assert isinstance(ptt, CompositeActivator)
 
 
@@ -396,7 +396,7 @@ def test_build_keeps_plain_ptt_when_wake_disabled(tmp_path, monkeypatch):
         encoding="utf-8")
 
     from voice_assistant.main import _build
-    pipe, qs, capture, ptt, vad, feedback = _build(str(tmp_path / "default.yaml"))
+    pipe, qs, capture, ptt, vad, feedback, tray = _build(str(tmp_path / "default.yaml"))
     assert not isinstance(ptt, CompositeActivator)
 
 
@@ -425,7 +425,7 @@ def test_build_drops_wake_when_store_fails(tmp_path, monkeypatch):
         encoding="utf-8")
 
     from voice_assistant.main import _build
-    pipe, qs, capture, ptt, vad, feedback = _build(str(tmp_path / "default.yaml"))
+    pipe, qs, capture, ptt, vad, feedback, tray = _build(str(tmp_path / "default.yaml"))
     # Wake construction failed → ptt is the plain PushToTalk, not a Composite
     assert not isinstance(ptt, CompositeActivator)
 
@@ -477,3 +477,81 @@ def test_request_shutdown_swallows_feedback_cancel_failure():
     # Must NOT propagate the exception
     _request_shutdown(stop_evt, qs, feedback)
     assert stop_evt.is_set()
+
+
+def test_build_returns_tray_when_enabled(tmp_path, monkeypatch):
+    """When tray.enabled, _build returns a 7-tuple ending with a SystemTray."""
+    monkeypatch.setattr("voice_assistant.main.FasterWhisperEngine", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.AudioCapture", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.PushToTalk", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.VADSegmenter", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.register_all", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
+    fake_tray = MagicMock(name="SystemTray-instance")
+    monkeypatch.setattr("voice_assistant.main.SystemTray",
+                        MagicMock(return_value=fake_tray))
+
+    (tmp_path / "commands.yaml").write_text(
+        '- intent: noop\n  examples: ["noop"]\n  slots: {}\n',
+        encoding="utf-8")
+    (tmp_path / "default.yaml").write_text(
+        "tts:\n  enabled: false\n"
+        "llm:\n  enabled: false\n"
+        "wake:\n  enabled: false\n"
+        "tray:\n  enabled: true\n",
+        encoding="utf-8")
+
+    from voice_assistant.main import _build
+    pipe, qs, capture, ptt, vad, feedback, tray = _build(
+        str(tmp_path / "default.yaml"))
+    assert tray is fake_tray
+
+
+def test_build_returns_none_tray_when_disabled(tmp_path, monkeypatch):
+    monkeypatch.setattr("voice_assistant.main.FasterWhisperEngine", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.AudioCapture", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.PushToTalk", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.VADSegmenter", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.register_all", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
+
+    (tmp_path / "commands.yaml").write_text(
+        '- intent: noop\n  examples: ["noop"]\n  slots: {}\n',
+        encoding="utf-8")
+    (tmp_path / "default.yaml").write_text(
+        "tts:\n  enabled: false\n"
+        "llm:\n  enabled: false\n"
+        "wake:\n  enabled: false\n"
+        "tray:\n  enabled: false\n",
+        encoding="utf-8")
+
+    from voice_assistant.main import _build
+    pipe, qs, capture, ptt, vad, feedback, tray = _build(
+        str(tmp_path / "default.yaml"))
+    assert tray is None
+
+
+def test_build_returns_none_tray_when_systemtray_raises(tmp_path, monkeypatch):
+    monkeypatch.setattr("voice_assistant.main.FasterWhisperEngine", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.AudioCapture", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.PushToTalk", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.VADSegmenter", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.register_all", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
+    bad = MagicMock(side_effect=RuntimeError("pystray not available"))
+    monkeypatch.setattr("voice_assistant.main.SystemTray", bad)
+
+    (tmp_path / "commands.yaml").write_text(
+        '- intent: noop\n  examples: ["noop"]\n  slots: {}\n',
+        encoding="utf-8")
+    (tmp_path / "default.yaml").write_text(
+        "tts:\n  enabled: false\n"
+        "llm:\n  enabled: false\n"
+        "wake:\n  enabled: false\n"
+        "tray:\n  enabled: true\n",
+        encoding="utf-8")
+
+    from voice_assistant.main import _build
+    pipe, qs, capture, ptt, vad, feedback, tray = _build(
+        str(tmp_path / "default.yaml"))
+    assert tray is None

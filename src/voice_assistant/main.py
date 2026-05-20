@@ -31,6 +31,7 @@ from voice_assistant.feedback.cli import CLIFeedback
 from voice_assistant.feedback.composite import CompositeFeedback
 from voice_assistant.feedback.piper import PiperFeedback
 from voice_assistant.feedback.voice_models import VoiceModelStore
+from voice_assistant.ui.tray import SystemTray
 
 
 class Pipeline:
@@ -67,7 +68,7 @@ class Pipeline:
 
 def _build(config_path: str) -> tuple[Pipeline, PipelineQueues,
                                        AudioCapture, Activator, VADSegmenter,
-                                       FeedbackSink]:
+                                       FeedbackSink, SystemTray | None]:
     cfg = load_config(config_path)
     setup_logging(level=cfg.log_level)
     register_all()
@@ -147,7 +148,16 @@ def _build(config_path: str) -> tuple[Pipeline, PipelineQueues,
             logger.error(f"wake disabled — setup failed: {e}")
     if len(activators) > 1:
         ptt = CompositeActivator(activators)
-    return pipe, qs, capture, ptt, vad, feedback
+
+    tray: SystemTray | None = None
+    if cfg.tray.enabled:
+        try:
+            tray = SystemTray(quit_callback=lambda: None, version="0.1.0")
+        except Exception as e:
+            logger.error(f"tray disabled — setup failed: {e}")
+            tray = None
+
+    return pipe, qs, capture, ptt, vad, feedback, tray
 
 
 def _request_shutdown(stop_evt: threading.Event,
@@ -193,7 +203,7 @@ def _worker(pipe: Pipeline, qs: PipelineQueues, vad: VADSegmenter,
 
 def main() -> int:
     config_path = "config/default.yaml"
-    pipe, qs, capture, ptt, vad, feedback = _build(config_path)
+    pipe, qs, capture, ptt, vad, feedback, tray = _build(config_path)
     stop_evt = threading.Event()
     try:
         capture.start()
@@ -206,12 +216,24 @@ def main() -> int:
         _request_shutdown(stop_evt, qs, feedback)
 
     signal.signal(signal.SIGINT, _shutdown)
+    if tray is not None:
+        tray.set_quit_callback(lambda: _shutdown())
+        try:
+            tray.start()
+        except Exception:
+            logger.exception("tray.start failed")
+            tray = None
     ptt.start()
     worker = threading.Thread(target=_worker, args=(pipe, qs, vad, stop_evt),
                               daemon=True)
     worker.start()
     logger.info("ready — hold push-to-talk key and speak")
     worker.join()
+    if tray is not None:
+        try:
+            tray.stop()
+        except Exception:
+            logger.exception("tray.stop failed")
     feedback.stop()
     ptt.stop()
     capture.stop()
