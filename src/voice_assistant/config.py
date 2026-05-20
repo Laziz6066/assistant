@@ -93,6 +93,8 @@ class DialogConfig(BaseModel):
 
 class DictationConfig(BaseModel):
     enabled: bool = True
+    # Reserved for future per-keystroke pacing. The current pynput backend
+    # (Controller.type) types instantly and does not honor this delay.
     type_delay_s: float = 0.01
 
 

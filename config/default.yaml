@@ -57,4 +57,5 @@ dialog:
   context_size: 5
 dictation:
   enabled: true
+  # Reserved — not currently honored (pynput types instantly).
   type_delay_s: 0.01
