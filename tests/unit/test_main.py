@@ -211,6 +211,7 @@ def test_build_uses_composite_when_tts_enabled(tmp_path, monkeypatch):
     monkeypatch.setattr("voice_assistant.main.register_all", MagicMock())
     monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
     monkeypatch.setattr("voice_assistant.main.VoiceModelStore", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.SystemTray", MagicMock())
 
     # Minimal commands.yaml and default.yaml
     (tmp_path / "commands.yaml").write_text(
@@ -244,6 +245,7 @@ def test_build_falls_back_to_cli_when_voices_dir_unwritable(tmp_path, monkeypatc
     # VoiceModelStore.__init__ raises PermissionError
     bad_store = MagicMock(side_effect=PermissionError("read-only fs"))
     monkeypatch.setattr("voice_assistant.main.VoiceModelStore", bad_store)
+    monkeypatch.setattr("voice_assistant.main.SystemTray", MagicMock())
 
     (tmp_path / "commands.yaml").write_text(
         '- intent: noop\n  examples: ["noop"]\n', encoding="utf-8")
@@ -273,6 +275,7 @@ def test_ptt_state_change_held_calls_feedback_cancel(monkeypatch, tmp_path):
     monkeypatch.setattr("voice_assistant.main.VADSegmenter", MagicMock())
     monkeypatch.setattr("voice_assistant.main.register_all", MagicMock())
     monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.SystemTray", MagicMock())
 
     (tmp_path / "commands.yaml").write_text(
         '- intent: noop\n  examples: ["noop"]\n', encoding="utf-8")
@@ -304,6 +307,7 @@ def test_build_wraps_nlu_in_llm_fallback_when_enabled(tmp_path, monkeypatch):
     monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
     # Mock OllamaClient so we don't try to connect to a real server
     monkeypatch.setattr("voice_assistant.main.OllamaClient", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.SystemTray", MagicMock())
 
     (tmp_path / "commands.yaml").write_text(
         '- intent: noop\n  examples: ["noop"]\n  slots: {}\n',
@@ -331,6 +335,7 @@ def test_build_uses_plain_rules_router_when_llm_disabled(tmp_path, monkeypatch):
     monkeypatch.setattr("voice_assistant.main.VADSegmenter", MagicMock())
     monkeypatch.setattr("voice_assistant.main.register_all", MagicMock())
     monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.SystemTray", MagicMock())
 
     (tmp_path / "commands.yaml").write_text(
         '- intent: noop\n  examples: ["noop"]\n  slots: {}\n',
@@ -360,6 +365,7 @@ def test_build_wraps_in_composite_when_wake_enabled(tmp_path, monkeypatch):
     monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
     monkeypatch.setattr("voice_assistant.main.WakeModelStore", MagicMock())
     monkeypatch.setattr("voice_assistant.main.WakeWordActivator", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.SystemTray", MagicMock())
 
     (tmp_path / "commands.yaml").write_text(
         '- intent: noop\n  examples: ["noop"]\n  slots: {}\n',
@@ -385,6 +391,7 @@ def test_build_keeps_plain_ptt_when_wake_disabled(tmp_path, monkeypatch):
     monkeypatch.setattr("voice_assistant.main.VADSegmenter", MagicMock())
     monkeypatch.setattr("voice_assistant.main.register_all", MagicMock())
     monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.SystemTray", MagicMock())
 
     (tmp_path / "commands.yaml").write_text(
         '- intent: noop\n  examples: ["noop"]\n  slots: {}\n',
@@ -413,6 +420,7 @@ def test_build_drops_wake_when_store_fails(tmp_path, monkeypatch):
 
     bad_store = MagicMock(side_effect=RuntimeError("disk full"))
     monkeypatch.setattr("voice_assistant.main.WakeModelStore", bad_store)
+    monkeypatch.setattr("voice_assistant.main.SystemTray", MagicMock())
 
     (tmp_path / "commands.yaml").write_text(
         '- intent: noop\n  examples: ["noop"]\n  slots: {}\n',
