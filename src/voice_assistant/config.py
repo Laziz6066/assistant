@@ -52,6 +52,15 @@ class TTSConfig(BaseModel):
         return v
 
 
+class LLMConfig(BaseModel):
+    enabled: bool = False
+    model: str = "qwen2.5:3b-instruct"
+    host: str = "http://localhost:11434"
+    timeout_s: float = 3.0
+    temperature: float = 0.1
+    min_confidence: float = 0.5
+
+
 class AppConfig(BaseModel):
     audio: AudioConfig = Field(default_factory=AudioConfig)
     asr: ASRConfig = Field(default_factory=ASRConfig)
@@ -59,6 +68,7 @@ class AppConfig(BaseModel):
     hotkey: HotkeyConfig = Field(default_factory=HotkeyConfig)
     nlu: NLUConfig = Field(default_factory=NLUConfig)
     tts: TTSConfig = Field(default_factory=TTSConfig)
+    llm: LLMConfig = Field(default_factory=LLMConfig)
     log_level: str = "INFO"
     store_transcripts: bool = False
     app_aliases: dict[str, str] = Field(default_factory=dict)

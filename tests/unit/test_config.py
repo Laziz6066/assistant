@@ -52,3 +52,31 @@ def test_app_config_has_tts_section_with_defaults():
     cfg = AppConfig()
     assert cfg.tts.enabled is True
     assert cfg.tts.voice == "ru_RU-irina-medium"
+
+
+from voice_assistant.config import LLMConfig
+
+
+def test_llm_config_default_values():
+    cfg = LLMConfig()
+    assert cfg.enabled is False
+    assert cfg.model == "qwen2.5:3b-instruct"
+    assert cfg.host == "http://localhost:11434"
+    assert cfg.timeout_s == 3.0
+    assert cfg.temperature == 0.1
+    assert cfg.min_confidence == 0.5
+
+
+def test_llm_config_accepts_overrides():
+    cfg = LLMConfig(enabled=True, model="llama3.2:3b",
+                    timeout_s=5.0, min_confidence=0.7)
+    assert cfg.enabled is True
+    assert cfg.model == "llama3.2:3b"
+    assert cfg.timeout_s == 5.0
+    assert cfg.min_confidence == 0.7
+
+
+def test_app_config_has_llm_section_with_defaults():
+    cfg = AppConfig()
+    assert cfg.llm.enabled is False
+    assert cfg.llm.model == "qwen2.5:3b-instruct"
