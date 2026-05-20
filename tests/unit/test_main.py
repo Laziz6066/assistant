@@ -906,8 +906,8 @@ def test_main_uses_paths_for_default_config(monkeypatch):
 
 
 def test_build_uses_commands_yaml_in_user_config_dir(tmp_path, monkeypatch):
-    """_build derives commands.yaml from the same directory as the config
-    path it was given, NOT a hardcoded literal."""
+    """_build derives commands.yaml from paths.get_user_config_dir(), NOT
+    from the config_path argument's parent."""
     from voice_assistant import main as main_mod
 
     monkeypatch.setattr(main_mod, "FasterWhisperEngine", MagicMock())
@@ -920,6 +920,8 @@ def test_build_uses_commands_yaml_in_user_config_dir(tmp_path, monkeypatch):
 
     custom_dir = tmp_path / "weird-loc"
     custom_dir.mkdir()
+    monkeypatch.setattr(main_mod.paths, "get_user_config_dir",
+                         lambda: custom_dir)
     (custom_dir / "default.yaml").write_text(
         "tts:\n  enabled: false\n"
         "llm:\n  enabled: false\n"

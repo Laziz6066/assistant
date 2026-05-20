@@ -2,7 +2,6 @@ from __future__ import annotations
 import queue
 import signal
 import threading
-from pathlib import Path
 from loguru import logger
 
 from voice_assistant.config import load_config, AppConfig
@@ -111,7 +110,7 @@ def _build(config_path: str) -> tuple[Pipeline, PipelineQueues,
         model=cfg.asr.model, device=cfg.asr.device,
         compute_type=cfg.asr.compute_type, language=cfg.asr.language)
     nlu: NLURouter = RulesRouter(
-        commands_path=str(Path(config_path).parent / "commands.yaml"),
+        commands_path=str(paths.get_user_config_dir() / "commands.yaml"),
         fuzzy_threshold=cfg.nlu.fuzzy_threshold)
     if cfg.llm.enabled:
         ollama_client = OllamaClient(
@@ -121,7 +120,7 @@ def _build(config_path: str) -> tuple[Pipeline, PipelineQueues,
             min_confidence=cfg.llm.min_confidence)
         nlu = LLMFallbackRouter(
             primary=nlu, client=ollama_client,
-            commands_path=Path(config_path).parent / "commands.yaml",
+            commands_path=paths.get_user_config_dir() / "commands.yaml",
             app_aliases=cfg.app_aliases)
     if cfg.tts.enabled:
         try:
