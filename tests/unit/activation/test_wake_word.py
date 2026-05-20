@@ -289,3 +289,79 @@ def test_stop_when_unavailable_is_safe(tmp_path):
     # _available is False; stop() must not raise and must not unsubscribe
     fa.stop()
     cap.unsubscribe.assert_not_called()
+
+
+def test_load_engine_calls_real_model_load(tmp_path):
+    cap = _make_capture_mock()
+    store = _make_store_mock(tmp_path)
+    on_state = MagicMock()
+    (tmp_path / "fake.onnx").write_bytes(b"x" * 1000)
+    with patch("voice_assistant.activation.wake_word.Model") as MockModel:
+        inst = MagicMock()
+        inst.predict.return_value = {"hey_jarvis": 0.05}
+        MockModel.return_value = inst
+        # Use the real WakeWordActivator (not the test subclass)
+        fa = WakeWordActivator(model="hey_jarvis", store=store,
+                                capture=cap, threshold=0.5,
+                                silence_ms=800, max_speech_ms=10000,
+                                on_state_change=on_state)
+        fa.start()
+        try:
+            MockModel.assert_called_once()
+            assert fa._available is True
+        finally:
+            fa.stop()
+
+
+def test_predict_score_uses_model_predict(tmp_path):
+    cap = _make_capture_mock()
+    store = _make_store_mock(tmp_path)
+    on_state = MagicMock()
+    (tmp_path / "fake.onnx").write_bytes(b"x" * 1000)
+    with patch("voice_assistant.activation.wake_word.Model") as MockModel:
+        inst = MagicMock()
+        inst.predict.return_value = {"hey_jarvis": 0.92}
+        MockModel.return_value = inst
+        fa = WakeWordActivator(model="hey_jarvis", store=store,
+                                capture=cap, threshold=0.5,
+                                silence_ms=800, max_speech_ms=10000,
+                                on_state_change=on_state)
+        fa.start()
+        try:
+            fa._on_audio_chunk(_LOUD)
+            _drain(fa)
+            on_state.assert_called_once_with(True)
+        finally:
+            fa.stop()
+
+
+def test_reset_engine_calls_real_reset(tmp_path):
+    cap = _make_capture_mock()
+    store = _make_store_mock(tmp_path)
+    on_state = MagicMock()
+    (tmp_path / "fake.onnx").write_bytes(b"x" * 1000)
+    with patch("voice_assistant.activation.wake_word.Model") as MockModel:
+        inst = MagicMock()
+        # First call (probe in _load_engine): sets _model_key.
+        # Second call: triggers wake. Then 10 silent chunks → reset.
+        scores = ([{"hey_jarvis": 0.0}]      # probe
+                  + [{"hey_jarvis": 0.92}]   # wake
+                  + [{"hey_jarvis": 0.0}] * 10)  # silence → release
+        inst.predict.side_effect = scores
+        MockModel.return_value = inst
+        fa = WakeWordActivator(model="hey_jarvis", store=store,
+                                capture=cap, threshold=0.5,
+                                silence_ms=800, max_speech_ms=10000,
+                                on_state_change=on_state,
+                                _sample_rate=16000)
+        fa.start()
+        try:
+            fa._on_audio_chunk(_LOUD)
+            for _ in range(10):
+                fa._on_audio_chunk(_SILENT)
+            _drain(fa)
+            # The mocked Model received a reset call exactly once
+            assert (inst.reset_prediction_buffer.called
+                    or inst.reset.called), "expected reset method to be called"
+        finally:
+            fa.stop()

@@ -10,6 +10,7 @@ from voice_assistant.activation.base import Activator
 from voice_assistant.activation.models_store import (
     WakeModelStore, WakeModelNotFoundError,
 )
+from openwakeword.model import Model
 
 
 _AUDIO_Q_MAXSIZE = 16
@@ -52,6 +53,8 @@ class WakeWordActivator(Activator):
         self._available = False
         self._state = "IDLE"
         self._onnx_path: Path | None = None
+        self._model = None
+        self._model_key = ""
 
     # ---- lifecycle ----
 
@@ -143,17 +146,32 @@ class WakeWordActivator(Activator):
                         logger.exception("wake reset_engine failed")
                     self._on_state_change(False)
 
-    # ---- seams overridable by tests; real impl in Task 7 ----
+    # ---- seams overridable by tests; real impl ----
 
     def _load_engine(self, onnx_path: Path) -> None:
-        """Load the openWakeWord model. Default: no-op (overridden in Task 7)."""
+        self._model = Model(
+            wakeword_models=[str(onnx_path)],
+            inference_framework="onnx",
+        )
+        # Derive the model key from the first key in a probe prediction so
+        # _predict_score doesn't depend on the alias-to-key mapping.
+        probe_chunk = np.zeros(1280, dtype=np.int16)
+        probe_scores = self._model.predict(probe_chunk)
+        if not probe_scores:
+            raise RuntimeError("openwakeword model produced no scores on probe")
+        self._model_key = next(iter(probe_scores.keys()))
 
     def _predict_score(self, chunk: np.ndarray) -> float:
-        """Return the wake-word score for this chunk. Tests stub this."""
-        return 0.0
+        scores = self._model.predict(chunk)
+        return float(scores.get(self._model_key, 0.0))
 
     def _reset_engine(self) -> None:
-        """Reset prediction buffer to avoid re-trigger. Tests stub this."""
+        # openWakeWord API: reset_prediction_buffer if available, else reset
+        reset = getattr(self._model, "reset_prediction_buffer",
+                         None) or getattr(self._model, "reset", None)
+        if reset is None:
+            return
+        reset()
 
     # ---- helpers ----
 
