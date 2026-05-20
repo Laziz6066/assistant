@@ -24,6 +24,7 @@ dependencies = [
   "ollama>=0.3",
   "openwakeword>=0.6",
   "pystray>=0.19",
+  "Pillow>=10",
 ]
 
 [project.optional-dependencies]
