@@ -17,3 +17,7 @@ htmlcov/
 *.db
 .swarm/
 .claude-flow/
+
+# Runtime artifacts
+voice_assistant.log
+.claude/
