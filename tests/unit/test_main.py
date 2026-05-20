@@ -314,7 +314,8 @@ def test_build_wraps_nlu_in_llm_fallback_when_enabled(tmp_path, monkeypatch):
         encoding="utf-8")
     (tmp_path / "default.yaml").write_text(
         "tts:\n  enabled: false\n"
-        "llm:\n  enabled: true\n  model: qwen2.5:3b-instruct\n",
+        "llm:\n  enabled: true\n  model: qwen2.5:3b-instruct\n"
+        "dialog:\n  enabled: false\n",
         encoding="utf-8")
 
     from voice_assistant.main import _build
@@ -342,7 +343,8 @@ def test_build_uses_plain_rules_router_when_llm_disabled(tmp_path, monkeypatch):
         encoding="utf-8")
     (tmp_path / "default.yaml").write_text(
         "tts:\n  enabled: false\n"
-        "llm:\n  enabled: false\n",
+        "llm:\n  enabled: false\n"
+        "dialog:\n  enabled: false\n",
         encoding="utf-8")
 
     from voice_assistant.main import _build
@@ -654,3 +656,64 @@ def test_pipeline_without_context_store_does_not_raise():
                      ctx=MagicMock(), feedback=feedback)  # context_store omitted
     pipe.process_segment(AudioSegment(np.zeros(8000, dtype=np.int16), 16000))
     # No exception means PASS
+
+
+def test_build_wraps_in_contextual_router_when_dialog_enabled(tmp_path,
+                                                                monkeypatch):
+    from voice_assistant.nlu.contextual import ContextualRouter
+    from voice_assistant.nlu.context_store import ContextStore
+
+    monkeypatch.setattr("voice_assistant.main.FasterWhisperEngine", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.AudioCapture", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.PushToTalk", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.VADSegmenter", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.register_all", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.SystemTray", MagicMock())
+
+    (tmp_path / "commands.yaml").write_text(
+        '- intent: noop\n  examples: ["noop"]\n  slots: {}\n',
+        encoding="utf-8")
+    (tmp_path / "default.yaml").write_text(
+        "tts:\n  enabled: false\n"
+        "llm:\n  enabled: false\n"
+        "wake:\n  enabled: false\n"
+        "tray:\n  enabled: false\n"
+        "dialog:\n  enabled: true\n",
+        encoding="utf-8")
+
+    from voice_assistant.main import _build
+    pipe, qs, capture, ptt, vad, feedback, tray = _build(
+        str(tmp_path / "default.yaml"))
+    assert isinstance(pipe.nlu, ContextualRouter)
+    assert isinstance(pipe.context_store, ContextStore)
+
+
+def test_build_skips_contextual_router_when_dialog_disabled(tmp_path,
+                                                              monkeypatch):
+    from voice_assistant.nlu.contextual import ContextualRouter
+
+    monkeypatch.setattr("voice_assistant.main.FasterWhisperEngine", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.AudioCapture", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.PushToTalk", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.VADSegmenter", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.register_all", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.SystemTray", MagicMock())
+
+    (tmp_path / "commands.yaml").write_text(
+        '- intent: noop\n  examples: ["noop"]\n  slots: {}\n',
+        encoding="utf-8")
+    (tmp_path / "default.yaml").write_text(
+        "tts:\n  enabled: false\n"
+        "llm:\n  enabled: false\n"
+        "wake:\n  enabled: false\n"
+        "tray:\n  enabled: false\n"
+        "dialog:\n  enabled: false\n",
+        encoding="utf-8")
+
+    from voice_assistant.main import _build
+    pipe, qs, capture, ptt, vad, feedback, tray = _build(
+        str(tmp_path / "default.yaml"))
+    assert not isinstance(pipe.nlu, ContextualRouter)
+    assert pipe.context_store is None

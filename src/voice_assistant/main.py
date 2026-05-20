@@ -24,6 +24,7 @@ from voice_assistant.nlu.rules import RulesRouter
 from voice_assistant.nlu.llm_fallback import LLMFallbackRouter
 from voice_assistant.nlu.ollama_client import OllamaClient
 from voice_assistant.nlu.context_store import ContextStore
+from voice_assistant.nlu.contextual import ContextualRouter
 from voice_assistant.executor.registry import global_registry, Registry
 from voice_assistant.executor.context import ExecutorContext
 from voice_assistant.executor.plugins import register_all
@@ -106,7 +107,15 @@ def _build(config_path: str) -> tuple[Pipeline, PipelineQueues,
             feedback = CLIFeedback()
     else:
         feedback = CLIFeedback()
-    pipe = Pipeline(cfg, asr, nlu, global_registry(), ctx, feedback)
+    context_store: ContextStore | None = None
+    if cfg.dialog.enabled:
+        context_store = ContextStore(
+            max_size=cfg.dialog.context_size,
+            ttl_s=cfg.dialog.context_ttl_s,
+        )
+        nlu = ContextualRouter(inner=nlu, store=context_store)
+    pipe = Pipeline(cfg, asr, nlu, global_registry(), ctx, feedback,
+                     context_store=context_store)
 
     qs = PipelineQueues()
     capture = AudioCapture(cfg.audio.sample_rate, cfg.audio.ring_seconds,
