@@ -42,3 +42,10 @@ llm:
   timeout_s: 3.0
   temperature: 0.1
   min_confidence: 0.5
+wake:
+  enabled: false
+  model: hey_jarvis
+  threshold: 0.5
+  silence_ms: 800
+  max_speech_ms: 10000
+  models_dir: ~/.voice-assistant/wake-models
