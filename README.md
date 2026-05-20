@@ -106,3 +106,23 @@ PTT продолжает работать.
 - [ ] Background conversation (no wake) — no false triggers in 1 min
 - [ ] Stop openwakeword model from disk, restart: ERROR log, PTT still works
 - [ ] Ctrl+C — wake thread joins within 2 s
+
+## System tray
+
+Когда ассистент запущен, в системном трее появляется иконка. Правой кнопкой:
+- **About** — версия ассистента (вывод в лог)
+- **Quit** — корректное завершение работы (как Ctrl+C)
+
+Отключить трей: `tray.enabled: false` в `config/default.yaml` — ассистент работает без иконки (полезно для headless/автозапуска без UI).
+
+Если `pystray` не установлен или нет графической сессии (Linux без X/Wayland) — трей тихо отключается, ассистент работает.
+
+## System-tray verification checklist
+
+- [ ] Запустить — иконка появляется в трее
+- [ ] Hover показывает tooltip "Voice Assistant"
+- [ ] Right-click → About → версия в логе
+- [ ] Right-click → Quit → ассистент корректно завершается, без traceback
+- [ ] Ctrl+C тоже завершает корректно (тот же путь через `_request_shutdown`)
+- [ ] `tray.enabled: false` → иконки нет, ассистент работает в консоли
+- [ ] Удалить assets/tray-icon.png → запустить → fallback иконка (синий круг "VA") показывается
