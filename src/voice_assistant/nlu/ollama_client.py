@@ -60,7 +60,7 @@ class OllamaClient:
                 logger.debug(f"LLM ResponseError {status}: {e}")
             return Intent.unknown()
         except (TimeoutError, httpx.ReadTimeout, httpx.TimeoutException):
-            logger.debug(f"LLM timeout on text={text!r}")
+            logger.debug(f"LLM timeout on text (len={len(text)})")
             return Intent.unknown()
         except Exception:
             logger.exception("LLM classify unexpected error")
