@@ -37,8 +37,12 @@ class Pipeline:
 
     def process_segment(self, segment: AudioSegment) -> None:
         transcript = self.asr.transcribe(segment)
-        logger.info(f"ASR: '{transcript.text}' "
-                    f"(conf={transcript.confidence:.2f})")
+        if self.config.store_transcripts:
+            logger.info(f"ASR: '{transcript.text}' "
+                        f"(conf={transcript.confidence:.2f})")
+        else:
+            logger.info(f"ASR conf={transcript.confidence:.2f} "
+                        f"(transcript redacted)")
         if transcript.confidence < self.config.asr.min_confidence \
                 or not transcript.text.strip():
             self.feedback.emit("Не понял, повтори", success=False)
@@ -97,11 +101,15 @@ def _worker(pipe: Pipeline, qs: PipelineQueues, vad: VADSegmenter,
             continue
         if raw is STOP:
             break
-        segment = vad.segment(raw)
-        if segment is None:
-            pipe.feedback.emit("Не расслышал", success=False)
-            continue
-        pipe.process_segment(segment)
+        try:
+            segment = vad.segment(raw)
+            if segment is None:
+                pipe.feedback.emit("Не расслышал", success=False)
+                continue
+            pipe.process_segment(segment)
+        except Exception:
+            logger.exception("worker iteration failed")
+            pipe.feedback.emit("Ошибка обработки", success=False)
 
 
 def main() -> int:

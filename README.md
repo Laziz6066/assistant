@@ -9,6 +9,10 @@ python -m voice_assistant.main
 ```
 Config: `config/default.yaml`, commands: `config/commands.yaml`.
 
+## Privacy
+- `store_transcripts: false` in `config/default.yaml` (default) keeps ASR text out of the log; only confidence scores are recorded.
+- Known limitation: clipboard content read by `прочитай буфер` is echoed in feedback output (stdout + notification) and logged via `CLIFeedback`. Remove the `clipboard_read` rule from `config/commands.yaml` if this is unacceptable.
+
 ## Manual verification checklist (run before tagging MVP)
 - [ ] Hold Right Ctrl, say "открой блокнот" → notepad launches
 - [ ] "сверни всё" → desktop shows
