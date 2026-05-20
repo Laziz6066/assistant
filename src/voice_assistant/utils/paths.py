@@ -37,3 +37,14 @@ def get_user_config_dir() -> Path:
 def get_user_config_path() -> Path:
     """Full path to the default config YAML."""
     return get_user_config_dir() / "default.yaml"
+
+
+def get_log_path() -> Path:
+    """Full path to the log file: alongside the user-editable config dir's parent.
+
+    - In dev: <repo>/voice_assistant.log
+    - When frozen: <exe-parent>/voice_assistant.log
+    """
+    if is_frozen():
+        return Path(sys.executable).parent / "voice_assistant.log"
+    return Path(__file__).resolve().parents[3] / "voice_assistant.log"

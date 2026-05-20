@@ -60,3 +60,15 @@ def test_get_user_config_path_in_dev_points_at_default_yaml(monkeypatch):
     p = paths_mod.get_user_config_path()
     assert p.parts[-2:] == ("config", "default.yaml")
     assert p.is_file()
+
+
+def test_get_log_path_in_dev_resolves_to_repo_root(monkeypatch):
+    monkeypatch.delattr(sys, "frozen", raising=False)
+    p = paths_mod.get_log_path()
+    assert p.is_absolute()
+    assert p.name == "voice_assistant.log"
+
+
+def test_get_log_path_when_frozen_is_alongside_exe(fake_frozen):
+    p = paths_mod.get_log_path()
+    assert p == fake_frozen["exe_parent"] / "voice_assistant.log"

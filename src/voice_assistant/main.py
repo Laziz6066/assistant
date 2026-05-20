@@ -98,7 +98,7 @@ def _build(config_path: str) -> tuple[Pipeline, PipelineQueues,
                                        AudioCapture, Activator, VADSegmenter,
                                        FeedbackSink, SystemTray | None]:
     cfg = load_config(config_path)
-    setup_logging(level=cfg.log_level)
+    setup_logging(level=cfg.log_level, logfile=str(paths.get_log_path()))
     register_all()
     ops = get_platform_ops()
     mode_store: ModeStore | None = None
