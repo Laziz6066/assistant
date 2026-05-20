@@ -28,6 +28,9 @@ EXPECTED_INTENTS = {
     "shutdown",
     "reboot",
     "confirm_yes",
+    # dictation
+    "start_dictation",
+    "stop_dictation",
 }
 
 

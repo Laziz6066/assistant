@@ -1,10 +1,10 @@
 from voice_assistant.executor.registry import global_registry
 from voice_assistant.executor.plugins import (
-    apps, windows, browser, files, clipboard, system,
+    apps, windows, browser, files, clipboard, system, dictation,
 )
 
 
 def register_all() -> None:
     reg = global_registry()
-    for mod in (apps, windows, browser, files, clipboard, system):
+    for mod in (apps, windows, browser, files, clipboard, system, dictation):
         mod.register(reg)
