@@ -229,6 +229,34 @@ def test_build_uses_composite_when_tts_enabled(tmp_path, monkeypatch):
     assert "PiperFeedback" in types
 
 
+def test_build_falls_back_to_cli_when_voices_dir_unwritable(tmp_path, monkeypatch):
+    """If VoiceModelStore construction fails (e.g. unwritable dir), _build
+    must drop Piper and return CLIFeedback alone."""
+    from voice_assistant.feedback.cli import CLIFeedback
+
+    monkeypatch.setattr("voice_assistant.main.FasterWhisperEngine", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.AudioCapture", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.PushToTalk", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.VADSegmenter", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.register_all", MagicMock())
+    monkeypatch.setattr("voice_assistant.main.setup_logging", MagicMock())
+
+    # VoiceModelStore.__init__ raises PermissionError
+    bad_store = MagicMock(side_effect=PermissionError("read-only fs"))
+    monkeypatch.setattr("voice_assistant.main.VoiceModelStore", bad_store)
+
+    (tmp_path / "commands.yaml").write_text(
+        '- intent: noop\n  examples: ["noop"]\n', encoding="utf-8")
+    (tmp_path / "default.yaml").write_text(
+        f"tts:\n  enabled: true\n  voice: ru_RU-irina-medium\n"
+        f"  voices_dir: {tmp_path / 'voices'}\n",
+        encoding="utf-8")
+
+    from voice_assistant.main import _build
+    pipe, qs, capture, ptt, vad, feedback = _build(str(tmp_path / "default.yaml"))
+    assert isinstance(feedback, CLIFeedback)
+
+
 def test_ptt_state_change_held_calls_feedback_cancel(monkeypatch, tmp_path):
     """Pressing PTT must call feedback.cancel() so any in-flight TTS aborts."""
     from voice_assistant.main import _build

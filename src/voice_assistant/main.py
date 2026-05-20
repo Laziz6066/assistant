@@ -74,10 +74,14 @@ def _build(config_path: str) -> tuple[Pipeline, PipelineQueues,
         commands_path=str(Path(config_path).parent / "commands.yaml"),
         fuzzy_threshold=cfg.nlu.fuzzy_threshold)
     if cfg.tts.enabled:
-        store = VoiceModelStore(cfg.tts.voices_dir)
-        piper = PiperFeedback(voice=cfg.tts.voice, store=store,
-                               length_scale=cfg.tts.length_scale)
-        feedback: FeedbackSink = CompositeFeedback([CLIFeedback(), piper])
+        try:
+            store = VoiceModelStore(cfg.tts.voices_dir)
+            piper = PiperFeedback(voice=cfg.tts.voice, store=store,
+                                   length_scale=cfg.tts.length_scale)
+            feedback: FeedbackSink = CompositeFeedback([CLIFeedback(), piper])
+        except OSError as e:
+            logger.error(f"TTS disabled — voices_dir unusable: {e}")
+            feedback = CLIFeedback()
     else:
         feedback = CLIFeedback()
     pipe = Pipeline(cfg, asr, nlu, global_registry(), ctx, feedback)
